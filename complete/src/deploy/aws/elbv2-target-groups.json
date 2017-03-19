@@ -1,0 +1,24 @@
+{
+    "TargetGroups": [
+        {
+            "HealthCheckPath": "/profile", 
+            "HealthCheckIntervalSeconds": 30, 
+            "VpcId": "vpc-392eea50", 
+            "Protocol": "HTTP", 
+            "HealthCheckTimeoutSeconds": 5, 
+            "HealthCheckProtocol": "HTTP", 
+            "LoadBalancerArns": [
+                "arn:aws:elasticloadbalancing:eu-west-2:751191391887:loadbalancer/app/test-ec2-london-2ab-lb/cc6c0b365de29c59"
+            ], 
+            "UnhealthyThresholdCount": 10, 
+            "HealthyThresholdCount": 2, 
+            "TargetGroupArn": "arn:aws:elasticloadbalancing:eu-west-2:751191391887:targetgroup/test-ec2-london-2ab-tg-8080/fef951654c633ca2", 
+            "Matcher": {
+                "HttpCode": "200-299"
+            }, 
+            "HealthCheckPort": "traffic-port", 
+            "Port": 8080, 
+            "TargetGroupName": "test-ec2-london-2ab-tg-8080"
+        }
+    ]
+}

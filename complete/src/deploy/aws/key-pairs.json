@@ -1,0 +1,8 @@
+{
+    "KeyPairs": [
+        {
+            "KeyName": "test-ec2-london-2", 
+            "KeyFingerprint": "c9:38:34:32:da:77:4a:e6:75:f8:0a:93:32:a8:8d:24:c2:4f:82:78"
+        }
+    ]
+}

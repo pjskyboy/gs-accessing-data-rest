@@ -1,0 +1,106 @@
+{
+    "Subnets": [
+        {
+            "VpcId": "vpc-392eea50", 
+            "AvailableIpAddressCount": 4089, 
+            "MapPublicIpOnLaunch": true, 
+            "DefaultForAz": true, 
+            "Ipv6CidrBlockAssociationSet": [], 
+            "State": "available", 
+            "AvailabilityZone": "eu-west-2a", 
+            "SubnetId": "subnet-83c820f8", 
+            "CidrBlock": "172.31.0.0/20", 
+            "AssignIpv6AddressOnCreation": false
+        }, 
+        {
+            "VpcId": "vpc-e121f788", 
+            "Tags": [
+                {
+                    "Value": "ec2-lb-spring-rest-data", 
+                    "Key": "aws:cloudformation:stack-name"
+                }, 
+                {
+                    "Value": "subnetf0b7b5ba", 
+                    "Key": "aws:cloudformation:logical-id"
+                }, 
+                {
+                    "Value": "arn:aws:cloudformation:eu-west-2:751191391887:stack/ec2-lb-spring-rest-data/49467970-0c28-11e7-8131-504dcd6bf9fe", 
+                    "Key": "aws:cloudformation:stack-id"
+                }
+            ], 
+            "AvailableIpAddressCount": 4091, 
+            "MapPublicIpOnLaunch": false, 
+            "DefaultForAz": false, 
+            "Ipv6CidrBlockAssociationSet": [], 
+            "State": "available", 
+            "AvailabilityZone": "eu-west-2b", 
+            "SubnetId": "subnet-df4b5795", 
+            "CidrBlock": "172.31.16.0/20", 
+            "AssignIpv6AddressOnCreation": false
+        }, 
+        {
+            "VpcId": "vpc-e121f788", 
+            "Tags": [
+                {
+                    "Value": "subnet83c820f8", 
+                    "Key": "aws:cloudformation:logical-id"
+                }, 
+                {
+                    "Value": "ec2-lb-spring-rest-data", 
+                    "Key": "aws:cloudformation:stack-name"
+                }, 
+                {
+                    "Value": "arn:aws:cloudformation:eu-west-2:751191391887:stack/ec2-lb-spring-rest-data/49467970-0c28-11e7-8131-504dcd6bf9fe", 
+                    "Key": "aws:cloudformation:stack-id"
+                }
+            ], 
+            "AvailableIpAddressCount": 4091, 
+            "MapPublicIpOnLaunch": false, 
+            "DefaultForAz": false, 
+            "Ipv6CidrBlockAssociationSet": [], 
+            "State": "available", 
+            "AvailabilityZone": "eu-west-2a", 
+            "SubnetId": "subnet-84906aff", 
+            "CidrBlock": "172.31.0.0/20", 
+            "AssignIpv6AddressOnCreation": false
+        }, 
+        {
+            "VpcId": "vpc-392eea50", 
+            "AvailableIpAddressCount": 4089, 
+            "MapPublicIpOnLaunch": true, 
+            "DefaultForAz": true, 
+            "Ipv6CidrBlockAssociationSet": [], 
+            "State": "available", 
+            "AvailabilityZone": "eu-west-2b", 
+            "SubnetId": "subnet-f0b7b5ba", 
+            "CidrBlock": "172.31.16.0/20", 
+            "AssignIpv6AddressOnCreation": false
+        }, 
+        {
+            "VpcId": "vpc-c521f7ac", 
+            "Tags": [
+                {
+                    "Value": "cloud-former-template", 
+                    "Key": "aws:cloudformation:stack-name"
+                }, 
+                {
+                    "Value": "VPCSubnet", 
+                    "Key": "aws:cloudformation:logical-id"
+                }, 
+                {
+                    "Value": "arn:aws:cloudformation:eu-west-2:751191391887:stack/cloud-former-template/86519c50-0c28-11e7-946e-5081eddf44fe", 
+                    "Key": "aws:cloudformation:stack-id"
+                }
+            ], 
+            "AvailableIpAddressCount": 251, 
+            "MapPublicIpOnLaunch": true, 
+            "DefaultForAz": false, 
+            "Ipv6CidrBlockAssociationSet": [], 
+            "State": "available", 
+            "AvailabilityZone": "eu-west-2a", 
+            "SubnetId": "subnet-64916b1f", 
+            "CidrBlock": "10.10.10.0/24", 
+            "AssignIpv6AddressOnCreation": false
+        }
+    ]
+}
