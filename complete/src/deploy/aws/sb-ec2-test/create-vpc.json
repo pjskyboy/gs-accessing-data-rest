@@ -1,0 +1,6 @@
+{
+  "DryRun": false,
+  "CidrBlock": "172.31.0.0/16",
+  "InstanceTenancy": "default",
+  "AmazonProvidedIpv6CidrBlock": true
+}
