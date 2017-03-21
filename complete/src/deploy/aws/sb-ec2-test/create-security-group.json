@@ -1,6 +1,0 @@
-{
-  "DryRun": false,
-  "GroupName": "sb-ec2-test-single-ip",
-  "Description": "Allow access from a single IP",
-  "VpcId": ""
-}
