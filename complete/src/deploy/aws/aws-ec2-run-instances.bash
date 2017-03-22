@@ -22,20 +22,57 @@ echo "PEM file [${project}.pem]"
 #
 idArray=()
 
+# VPC creation #
+################
+
 vpcId=$(aws ec2 create-vpc --cidr-block "172.31.0.0/16" --instance-tenancy "default" --output text --query 'Vpc.VpcId')
 idArray+=(${vpcId})
 echo "vpcId [${vpcId}]"
 
 echo "Enabling DNS hostnames for [${vpcId}]"
+aws ec2 modify-vpc-attribute --vpc-id ${vpcId} --enable-dns-support
 aws ec2 modify-vpc-attribute --vpc-id ${vpcId} --enable-dns-hostnames
+
+# internet gateway and route table #
+####################################
+igwId=$(aws ec2 create-internet-gateway --output text --query 'InternetGateway.InternetGatewayId')
+idArray+=(${igwId})
+echo "igwId [${igwId}]"
+
+aws ec2 attach-internet-gateway --internet-gateway-id ${igwId} --vpc-id ${vpcId}
+
+rtbId=$(aws ec2 describe-route-tables --filters Name=vpc-id,Values=${vpcId} --output text --query 'RouteTables[*].RouteTableId')
+idArray+=(${rtbId})
+echo "rtbId [${rtbId}]"
+
+# az1 Subnet and route table #
+##############################
 
 az1SubnetId=$(aws ec2 create-subnet --vpc-id ${vpcId} --availability-zone eu-west-2a --cidr-block 172.31.0.0/20 --output text --query 'Subnet.SubnetId')
 idArray+=(${az1SubnetId})
 echo "az1SubnetId [${az1SubnetId}]"
 
+# associate this subnet with our route table
+aws ec2 associate-route-table --subnet-id ${az1SubnetId} --route-table-id ${rtbId}
+
+# az2 Subnet and route table #
+##############################
+
 az2SubnetId=$(aws ec2 create-subnet --vpc-id ${vpcId} --availability-zone eu-west-2b --cidr-block 172.31.16.0/20 --output text --query 'Subnet.SubnetId')
 idArray+=(${az2SubnetId})
 echo "az2SubnetId [${az2SubnetId}]"
+
+# associate this subnet with our route table
+aws ec2 associate-route-table --subnet-id ${az2SubnetId} --route-table-id ${rtbId}
+
+# Create a route in the IGW #
+#############################
+
+# create a route out from our route table to the igw
+aws ec2 create-route --route-table-id ${rtbId} --gateway-id ${igwId} --destination-cidr-block 0.0.0.0/0
+
+# Security groups #
+###################
 
 ec2SG=$(aws ec2 create-security-group --vpc-id ${vpcId} --group-name ${project}-ec2-sg --description "EC2 security group" --output text --query 'GroupId')
 idArray+=(${ec2SG})
@@ -123,7 +160,10 @@ echo "aws ec2 delete-security-group --group-id ${lbSG}" >>  ${removalScript}
 echo "aws ec2 delete-subnet --subnet-id ${az1SubnetId}" >>  ${removalScript}
 echo "aws ec2 delete-subnet --subnet-id ${az2SubnetId}" >>  ${removalScript}
 
+echo "aws ec2 detach-internet-gateway --internet-gateway-id ${igwId} --vpc-id ${vpcId}" >> ${removalScript}
+echo "aws ec2 delete-internet-gateway --internet-gateway-id ${igwId}" >> ${removalScript}
 echo "aws ec2 delete-vpc --vpc-id ${vpcId}" >>  ${removalScript}
+echo "aws ec2 delete-route-table --route-table-id ${rtbId}" >> ${removalScript}
 
 echo "aws ec2 delete-key-pair --key-name ${project}" >>  ${removalScript}
 echo "echo 'Removed resources for ${project}...'" >> ${removalScript}
