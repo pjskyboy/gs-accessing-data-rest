@@ -1,14 +1,24 @@
 #!/bin/bash
 
-if [ "$1X" == "X" ]
+if [ "$1X" == "X" -o "$2" == "X" ]
 then
-    echo "usage : $0 <project> "
+    echo "usage : $0 <project> az-root"
     echo "project will be used to prefix all EC2 dependencies"
+    echo "az-root will be used with a,b,c e.g. eu-west-1"
     exit 1
 fi
 
 project="${1}"
-echo "project [$project]"
+azRoot="${2}"
+echo "project [${project}] azRoot [${azRoot}]"
+
+# eu-west-1 ami id
+amiId="ami-2587b443"
+if [ "${azRoot}" == "eu-west-2" ]
+then
+    amiId="ami-0eacb96a"
+fi
+echo "amiId [${amiId}]"
 
 cp -v waitForInstance.bash ${project}
 pushd ${project}
@@ -48,7 +58,7 @@ echo "rtbId [${rtbId}]"
 # az1 Subnet and route table #
 ##############################
 
-az1SubnetId=$(aws ec2 create-subnet --vpc-id ${vpcId} --availability-zone eu-west-2a --cidr-block 172.31.0.0/20 --output text --query 'Subnet.SubnetId')
+az1SubnetId=$(aws ec2 create-subnet --vpc-id ${vpcId} --availability-zone "${azRoot}a" --cidr-block 172.31.0.0/20 --output text --query 'Subnet.SubnetId')
 idArray+=(${az1SubnetId})
 echo "az1SubnetId [${az1SubnetId}]"
 
@@ -58,7 +68,7 @@ aws ec2 associate-route-table --subnet-id ${az1SubnetId} --route-table-id ${rtbI
 # az2 Subnet and route table #
 ##############################
 
-az2SubnetId=$(aws ec2 create-subnet --vpc-id ${vpcId} --availability-zone eu-west-2b --cidr-block 172.31.16.0/20 --output text --query 'Subnet.SubnetId')
+az2SubnetId=$(aws ec2 create-subnet --vpc-id ${vpcId} --availability-zone "${azRoot}b" --cidr-block 172.31.16.0/20 --output text --query 'Subnet.SubnetId')
 idArray+=(${az2SubnetId})
 echo "az2SubnetId [${az2SubnetId}]"
 
@@ -105,13 +115,13 @@ echo "targetGroupArn [${targetGroupArn}]"
 
 # create EC2 instance in each  - KLUGE - we need to have previously made the image from an EC2 instance with our app installed !! :(
 #
-az1ec2=$(aws ec2 run-instances --image-id ami-0eacb96a --key-name ${project} --security-group-ids ${ec2SG} --subnet-id ${az1SubnetId} --associate-public-ip-address --user-data file://user-data.bash --instance-type t2.micro --placement AvailabilityZone=eu-west-2a,Tenancy=default --output text --query "Instances[0].InstanceId")
+az1ec2=$(aws ec2 run-instances --image-id ${amiId} --key-name ${project} --security-group-ids ${ec2SG} --subnet-id ${az1SubnetId} --associate-public-ip-address --user-data file://user-data.bash --instance-type t2.micro --placement AvailabilityZone="${azRoot}a",Tenancy=default --output text --query "Instances[0].InstanceId")
 echo "az1ec2 [${az1ec2}]"
 idArray+=(${az1ec2})
 
 ./waitForInstance.bash ${az1ec2} pending
 
-az2ec2=$(aws ec2 run-instances --image-id ami-0eacb96a --key-name ${project} --security-group-ids ${ec2SG} --subnet-id ${az2SubnetId} --associate-public-ip-address --user-data file://user-data.bash --instance-type t2.micro --placement AvailabilityZone=eu-west-2b,Tenancy=default --output text --query "Instances[0].InstanceId")
+az2ec2=$(aws ec2 run-instances --image-id ${amiId} --key-name ${project} --security-group-ids ${ec2SG} --subnet-id ${az2SubnetId} --associate-public-ip-address --user-data file://user-data.bash --instance-type t2.micro --placement AvailabilityZone="${azRoot}b",Tenancy=default --output text --query "Instances[0].InstanceId")
 echo "az2ec2 [${az2ec2}]"
 idArray+=(${az2ec2})
 
