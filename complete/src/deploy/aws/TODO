@@ -3,11 +3,12 @@ cloud template
 
 need to edit to add in elbv2 incl target groups related to instances
 
+http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-elasticloadbalancingv2-loadbalancer.html
+http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-elasticloadbalancingv2-targetgroup.html
+
 --------------------
 
 all done below but now moving to CloudFormation template sb-ec2-test.cft.json
-
-
 
 
 *** VPC needs Internet gateway and a route activated to let in traffic????
