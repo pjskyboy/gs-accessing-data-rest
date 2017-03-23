@@ -1,4 +1,15 @@
 
+cloud template
+
+need to edit to add in elbv2 incl target groups related to instances
+
+--------------------
+
+all done below but now moving to CloudFormation template sb-ec2-test.cft.json
+
+
+
+
 *** VPC needs Internet gateway and a route activated to let in traffic????
 
 
