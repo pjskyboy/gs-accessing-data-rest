@@ -1,7 +1,7 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
   "Resources": {
-    "vpcba7765de": {
+    "sbec2testvpc": {
       "Type": "AWS::EC2::VPC",
       "Properties": {
         "CidrBlock": "172.31.0.0/16",
@@ -16,13 +16,13 @@
         ]
       }
     },
-    "subnet709b8006": {
+    "sbec2testsubnet1a": {
       "Type": "AWS::EC2::Subnet",
       "Properties": {
         "CidrBlock": "172.31.0.0/20",
         "AvailabilityZone": "eu-west-1a",
         "VpcId": {
-          "Ref": "vpcba7765de"
+          "Ref": "sbec2testvpc"
         },
         "Tags": [
           {
@@ -32,13 +32,13 @@
         ]
       }
     },
-    "subnet61d2c905": {
+    "sbec2testsubnet1b": {
       "Type": "AWS::EC2::Subnet",
       "Properties": {
         "CidrBlock": "172.31.16.0/20",
         "AvailabilityZone": "eu-west-1b",
         "VpcId": {
-          "Ref": "vpcba7765de"
+          "Ref": "sbec2testvpc"
         },
         "Tags": [
           {
@@ -48,7 +48,7 @@
         ]
       }
     },
-    "igwb422a1d0": {
+    "sbec2testigw": {
       "Type": "AWS::EC2::InternetGateway",
       "Properties": {
         "Tags": [
@@ -59,7 +59,7 @@
         ]
       }
     },
-    "dopted31bd89": {
+    "sbec2testdhcpos": {
       "Type": "AWS::EC2::DHCPOptions",
       "Properties": {
         "DomainName": "eu-west-1.compute.internal",
@@ -68,19 +68,19 @@
         ]
       }
     },
-    "aclc90fd1ae": {
+    "sbec2testnacl": {
       "Type": "AWS::EC2::NetworkAcl",
       "Properties": {
         "VpcId": {
-          "Ref": "vpcba7765de"
+          "Ref": "sbec2testvpc"
         }
       }
     },
-    "rtbeffc4e88": {
+    "sbec2testrtbl": {
       "Type": "AWS::EC2::RouteTable",
       "Properties": {
         "VpcId": {
-          "Ref": "vpcba7765de"
+          "Ref": "sbec2testvpc"
         },
         "Tags": [
           {
@@ -90,7 +90,7 @@
         ]
       }
     },
-    "instancei05ca5880213781451": {
+    "sbec2testinstance1b": {
       "Type": "AWS::EC2::Instance",
       "Properties": {
         "DisableApiTermination": "false",
@@ -110,11 +110,10 @@
             "DeleteOnTermination": "true",
             "DeviceIndex": 0,
             "SubnetId": {
-              "Ref": "subnet61d2c905"
+              "Ref": "sbec2testsubnet1b"
             },
             "PrivateIpAddresses": [
               {
-                "PrivateIpAddress": "172.31.27.192",
                 "Primary": "true"
               }
             ],
@@ -128,7 +127,7 @@
         ]
       }
     },
-    "instancei0751aca5688a7b7f8": {
+    "sbec2testinstance1a": {
       "Type": "AWS::EC2::Instance",
       "Properties": {
         "DisableApiTermination": "false",
@@ -148,11 +147,10 @@
             "DeleteOnTermination": "true",
             "DeviceIndex": 0,
             "SubnetId": {
-              "Ref": "subnet709b8006"
+              "Ref": "sbec2testsubnet1a"
             },
             "PrivateIpAddresses": [
               {
-                "PrivateIpAddress": "172.31.4.176",
                 "Primary": "true"
               }
             ],
@@ -171,7 +169,7 @@
       "Properties": {
         "GroupDescription": "EC2 security group",
         "VpcId": {
-          "Ref": "vpcba7765de"
+          "Ref": "sbec2testvpc"
         },
         "Tags": [
           {
@@ -186,7 +184,7 @@
       "Properties": {
         "GroupDescription": "Load balancer security group",
         "VpcId": {
-          "Ref": "vpcba7765de"
+          "Ref": "sbec2testvpc"
         },
         "Tags": [
           {
@@ -205,7 +203,7 @@
         "RuleAction": "allow",
         "RuleNumber": "100",
         "NetworkAclId": {
-          "Ref": "aclc90fd1ae"
+          "Ref": "sbec2testnacl"
         }
       }
     },
@@ -217,7 +215,7 @@
         "RuleAction": "allow",
         "RuleNumber": "100",
         "NetworkAclId": {
-          "Ref": "aclc90fd1ae"
+          "Ref": "sbec2testnacl"
         }
       }
     },
@@ -225,10 +223,10 @@
       "Type": "AWS::EC2::SubnetNetworkAclAssociation",
       "Properties": {
         "NetworkAclId": {
-          "Ref": "aclc90fd1ae"
+          "Ref": "sbec2testnacl"
         },
         "SubnetId": {
-          "Ref": "subnet709b8006"
+          "Ref": "sbec2testsubnet1a"
         }
       }
     },
@@ -236,10 +234,10 @@
       "Type": "AWS::EC2::SubnetNetworkAclAssociation",
       "Properties": {
         "NetworkAclId": {
-          "Ref": "aclc90fd1ae"
+          "Ref": "sbec2testnacl"
         },
         "SubnetId": {
-          "Ref": "subnet61d2c905"
+          "Ref": "sbec2testsubnet1b"
         }
       }
     },
@@ -247,21 +245,70 @@
       "Type": "AWS::EC2::VPCGatewayAttachment",
       "Properties": {
         "VpcId": {
-          "Ref": "vpcba7765de"
+          "Ref": "sbec2testvpc"
         },
         "InternetGatewayId": {
-          "Ref": "igwb422a1d0"
+          "Ref": "sbec2testigw"
         }
+      }
+    },
+    "lb": {
+      "Type": "AWS::ElasticLoadBalancingV2::LoadBalancer",
+      "Properties": {
+        "Name": "sb-ec2-test-80-lb",
+        "Scheme": "internet-facing",
+        "SecurityGroups": [
+          "sgsbec2testlbsg"
+        ],
+        "Subnets": [
+          "sbec2testsubnet1a",
+          "sbec2testsubnet1b"
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "sb-ec2-test"
+          }
+        ]
+      }
+    },
+    "targetGroup": {
+      "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+      "Properties": {
+        "HealthCheckPath": "/profile",
+        "HealthCheckPort": "8080",
+        "HealthCheckProtocol": "HTTP",
+        "Name": "sb-ec2-test-tg",
+        "Port": 8080,
+        "Protocol": "HTTP",
+        "Matcher": {
+          "HttpCode": 200
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "sb-ec2-test"
+          }
+        ],
+        "Targets": [
+          {
+            "Id": "sbec2testinstance1b"
+          },
+          {
+            "Id": "sbec2testinstance1a"
+          }
+        ],
+        "VpcId": "sbec2testvpc"
       }
     },
     "subnetroute1": {
       "Type": "AWS::EC2::SubnetRouteTableAssociation",
       "Properties": {
         "RouteTableId": {
-          "Ref": "rtbeffc4e88"
+          "Ref": "sbec2testrtbl"
         },
         "SubnetId": {
-          "Ref": "subnet61d2c905"
+          "Ref": "sbec2testsubnet1b"
         }
       }
     },
@@ -269,10 +316,10 @@
       "Type": "AWS::EC2::SubnetRouteTableAssociation",
       "Properties": {
         "RouteTableId": {
-          "Ref": "rtbeffc4e88"
+          "Ref": "sbec2testrtbl"
         },
         "SubnetId": {
-          "Ref": "subnet709b8006"
+          "Ref": "sbec2testsubnet1a"
         }
       }
     },
@@ -281,26 +328,26 @@
       "Properties": {
         "DestinationCidrBlock": "0.0.0.0/0",
         "RouteTableId": {
-          "Ref": "rtbeffc4e88"
+          "Ref": "sbec2testrtbl"
         },
         "GatewayId": {
-          "Ref": "igwb422a1d0"
+          "Ref": "sbec2testigw"
         }
       },
       "DependsOn": "gw1"
     },
-    "dchpassoc1": {
+    "sbec2testdhcpassoc": {
       "Type": "AWS::EC2::VPCDHCPOptionsAssociation",
       "Properties": {
         "VpcId": {
-          "Ref": "vpcba7765de"
+          "Ref": "sbec2testvpc"
         },
         "DhcpOptionsId": {
-          "Ref": "dopted31bd89"
+          "Ref": "sbec2testdhcpos"
         }
       }
     },
-    "ingress1": {
+    "sbec2testingress1": {
       "Type": "AWS::EC2::SecurityGroupIngress",
       "Properties": {
         "GroupId": {
@@ -315,7 +362,7 @@
         "SourceSecurityGroupOwnerId": "751191391887"
       }
     },
-    "ingress2": {
+    "sbec2testingress2": {
       "Type": "AWS::EC2::SecurityGroupIngress",
       "Properties": {
         "GroupId": {
@@ -325,7 +372,7 @@
         "CidrIp": "82.10.149.166/32"
       }
     },
-    "ingress3": {
+    "sbec2testingress3": {
       "Type": "AWS::EC2::SecurityGroupIngress",
       "Properties": {
         "GroupId": {
@@ -337,7 +384,7 @@
         "CidrIp": "82.10.149.166/32"
       }
     },
-    "egress1": {
+    "sbec2testegress1": {
       "Type": "AWS::EC2::SecurityGroupEgress",
       "Properties": {
         "GroupId": {
@@ -347,7 +394,7 @@
         "CidrIp": "0.0.0.0/0"
       }
     },
-    "egress2": {
+    "sbec2testegress2": {
       "Type": "AWS::EC2::SecurityGroupEgress",
       "Properties": {
         "GroupId": {
@@ -358,5 +405,5 @@
       }
     }
   },
-  "Description": "sb-ec2-test"
+  "Description": "sb-ec2-test - cloudformation template for a load balanced pair of EC2 instances"
 }

@@ -1,0 +1,142 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Build a VPC and a pair of EC2 instances across the a and b AZs'
+Parameters:
+  projectName:
+    Description: "Project name to tag resources with using the ProjectName tag"
+    Type: "String"
+    MinLength: 1
+    MaxLength: 255
+    AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
+    Default: "projectName"
+  networkStackName:
+    Description: "Name of the active network stack to reference for dependencies e.g. vpc id"
+    Type: "String"
+    MinLength: 1
+    MaxLength: 255
+    AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
+    Default: "networkStackName"
+  amiId:
+    Description: "Supplied AMI Id"
+    Type: "String"
+  keyPair:
+    Description: "Supplied Key Pair name"
+    Type: "AWS::EC2::KeyPair::KeyName"
+  ownerId:
+    Description: "Supplied Owner Id (Account Id)"
+    Type: "String"
+Resources:
+  ec2A:
+      Type: 'AWS::EC2::Instance'
+      Properties:
+        DisableApiTermination: 'false'
+        InstanceInitiatedShutdownBehavior: stop
+        ImageId:
+          Ref: amiId
+        InstanceType: t2.micro
+        KeyName:
+          Ref: keyPair
+        Monitoring: 'false'
+        Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "ec2A" ] ]}}]
+        NetworkInterfaces:
+          -
+            DeleteOnTermination: 'true'
+            DeviceIndex: 0
+            SubnetId:
+              "Fn::ImportValue":
+                "Fn::Sub": "${networkStackName}-subnetA"
+            PrivateIpAddresses:
+              -
+                PrivateIpAddress: "172.31.4.176"
+                Primary: 'true'
+            GroupSet:
+              - "Fn::ImportValue":
+                  "Fn::Sub": "${networkStackName}-ec2SecurityGroup"
+            AssociatePublicIpAddress: 'true'
+        UserData:
+          "Fn::Base64":
+            "Fn::Join": [ "", ["/usr/sbin/yum update -y install java-1.8.0\n", "/usr/sbin/alternatives --set java /usr/lib/jvm/jre-1.8.0-openjdk.x86_64/bin/java\n", "cd /home/ec2-user\n", "sudo -bn -u ec2-user -s /usr/bin/java -jar gs-accessing-data-rest-0.1.0.jar 2>&1 > gs-accessing-data-rest-0.1.0.log\n", "chown ec2-user:ec2-user gs-accessing-data-rest-0.1.0.log\n"]]
+
+  ec2B:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      DisableApiTermination: 'false'
+      InstanceInitiatedShutdownBehavior: stop
+      ImageId:
+        Ref: amiId
+      InstanceType: t2.micro
+      KeyName:
+        Ref: keyPair
+      Monitoring: 'false'
+      Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "ec2B" ] ]}}]
+      NetworkInterfaces:
+        -
+          DeleteOnTermination: 'true'
+          DeviceIndex: 0
+          SubnetId:
+            "Fn::ImportValue":
+              "Fn::Sub": "${networkStackName}-subnetB"
+          PrivateIpAddresses:
+            -
+              PrivateIpAddress: "172.31.27.192"
+              Primary: 'true'
+          GroupSet:
+            - "Fn::ImportValue":
+               "Fn::Sub": "${networkStackName}-ec2SecurityGroup"
+          AssociatePublicIpAddress: 'true'
+      UserData:
+        "Fn::Base64":
+          "Fn::Join": [ "", ["/usr/sbin/yum update -y install java-1.8.0\n", "/usr/sbin/alternatives --set java /usr/lib/jvm/jre-1.8.0-openjdk.x86_64/bin/java\n", "cd /home/ec2-user\n", "sudo -bn -u ec2-user -s /usr/bin/java -jar gs-accessing-data-rest-0.1.0.jar 2>&1 > gs-accessing-data-rest-0.1.0.log\n", "chown ec2-user:ec2-user gs-accessing-data-rest-0.1.0.log\n"]]
+# Ingress from load balancer security group
+  ingress1:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId:
+        "Fn::ImportValue":
+          "Fn::Sub": "${networkStackName}-ec2SecurityGroup"
+      IpProtocol: tcp
+      FromPort: '8080'
+      ToPort: '8080'
+      SourceSecurityGroupId:
+        "Fn::ImportValue":
+          "Fn::Sub": "${networkStackName}-loadBalancerSecurityGroup"
+      SourceSecurityGroupOwnerId:
+        Ref: ownerId
+# ingress from a specific IP CIDR
+  ingressB:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId:
+        "Fn::ImportValue":
+          "Fn::Sub": "${networkStackName}-ec2SecurityGroup"
+      IpProtocol: '-1'
+      CidrIp: 82.10.149.166/32
+  egress:
+    Type: 'AWS::EC2::SecurityGroupEgress'
+    Properties:
+      GroupId:
+        "Fn::ImportValue":
+          "Fn::Sub": "${networkStackName}-ec2SecurityGroup"
+      IpProtocol: '-1'
+      CidrIp: 0.0.0.0/0
+  targetGroup:
+    Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
+    Properties:
+      HealthCheckPath: /profile
+      HealthCheckPort: '8080'
+      HealthCheckProtocol: HTTP
+      Port: 8080
+      Protocol: HTTP
+      Matcher:
+        HttpCode: 200
+      Tags:
+        - Key: Project
+          Value:
+            Ref: projectName
+      Targets:
+        - Id:
+            Ref: ec2A
+        - Id:
+            Ref: ec2B
+      VpcId:
+        "Fn::ImportValue":
+          "Fn::Sub": "${networkStackName}-vpcId"

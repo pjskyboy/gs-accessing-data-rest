@@ -1,0 +1,51 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'cloudformation template for load balancer and target group to be used with an upstream network stack'
+Parameters:
+  projectName:
+    Description: "Project name to tag resources with using the ProjectName tag"
+    Type: "String"
+    MinLength: 1
+    MaxLength: 255
+    AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
+    Default: "projectName"
+  networkStackName:
+    Description: "Name of the active network stack to reference for dependencies e.g. vpc id"
+    Type: "String"
+    MinLength: 1
+    MaxLength: 255
+    AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
+    Default: "networkStackName"
+Resources:
+# allows access from a specific IP
+  ingress1:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId:
+        "Fn::ImportValue":
+          "Fn::Sub": "${networkStackName}-loadBalancerSecurityGroup"
+      IpProtocol: tcp
+      FromPort: '80'
+      ToPort: '80'
+      CidrIp: 82.10.149.166/32
+# Allows outbound traffic to any IP
+  egress1:
+    Type: 'AWS::EC2::SecurityGroupEgress'
+    Properties:
+      GroupId:
+        "Fn::ImportValue":
+          "Fn::Sub": "${networkStackName}-loadBalancerSecurityGroup"
+      IpProtocol: '-1'
+      CidrIp: 0.0.0.0/0
+  loadbalancer:
+    Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
+    Properties:
+      Scheme: internet-facing
+      SecurityGroups:
+        - "Fn::ImportValue":
+            "Fn::Sub": "${networkStackName}-loadBalancerSecurityGroup"
+      Subnets:
+        - "Fn::ImportValue":
+                      "Fn::Sub": "${networkStackName}-subnetA"
+        - "Fn::ImportValue":
+                      "Fn::Sub": "${networkStackName}-subnetB"
+      Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "lb" ] ]}}]

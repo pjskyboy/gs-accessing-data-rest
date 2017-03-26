@@ -12,6 +12,8 @@ project="${1}"
 azRoot="${2}"
 echo "project [${project}] azRoot [${azRoot}]"
 
+aws cloudformation delete-stack --stack-name ${project}
+aws cloudformation create-stack --stask-name ${project}
 # eu-west-1 ami id
 amiId="ami-2587b443"
 if [ "${azRoot}" == "eu-west-2" ]

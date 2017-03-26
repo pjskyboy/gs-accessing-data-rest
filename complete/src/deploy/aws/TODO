@@ -1,40 +1,7 @@
 
 cloud template
 
-need to edit to add in elbv2 incl target groups related to instances
-
-http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-elasticloadbalancingv2-loadbalancer.html
-http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-elasticloadbalancingv2-targetgroup.html
-
---------------------
-
-all done below but now moving to CloudFormation template sb-ec2-test.cft.json
-
-
-*** VPC needs Internet gateway and a route activated to let in traffic????
-
-
-Need to complete an exercise to create
-
-   aws ec2 describe-key-pairs > key-pairs.json
-   aws ec2 describe-vpcs > ec2-vpcs.json    - vpc-392eea50 is the one to look at
-   aws ec2 describe-subnets    - subnet-83c820f8   and     subnet-83c820f8
-
-   aws ec2 describe-security-groups > security-groups.json
-   aws ec2 auth ingress
-   aws elbv2 target groups > elbv2-target-groups.json
-   aws elbv2 describe-load-balancers > elbv2-load-balancers.json
-
-   aws ec2 describe-images > ec2-images.json
-    aws ec2 describe-instances > ec2-instances.json
-
-Still worth generating image with s/w inside or just scp files using the keys we make earlier?
-Do we care once we have a working image - to test layout? If necessary we just rebuild image as needed?
-
-Repeat for scaling, RDS, replication, S3 etc etc
-
-HOw to conver to a cloudformation template ?
-
+incorporate RDS - multi-AZ at least
 
 
 
