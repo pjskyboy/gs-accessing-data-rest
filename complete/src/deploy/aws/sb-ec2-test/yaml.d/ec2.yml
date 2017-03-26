@@ -53,9 +53,16 @@ Resources:
                   "Fn::Sub": "${networkStackName}-ec2SecurityGroup"
             AssociatePublicIpAddress: 'true'
         UserData:
-          "Fn::Base64":
-            "Fn::Join": [ "", ["/usr/sbin/yum update -y install java-1.8.0\n", "/usr/sbin/alternatives --set java /usr/lib/jvm/jre-1.8.0-openjdk.x86_64/bin/java\n", "cd /home/ec2-user\n", "sudo -bn -u ec2-user -s /usr/bin/java -jar gs-accessing-data-rest-0.1.0.jar 2>&1 > gs-accessing-data-rest-0.1.0.log\n", "chown ec2-user:ec2-user gs-accessing-data-rest-0.1.0.log\n"]]
+          Fn::Base64: !Sub |
+            #!/bin/bash
 
+            #${projectName} - keeps sub function happy
+            /usr/bin/yum -y install java-1.8.0
+            /usr/sbin/alternatives --set java /usr/lib/jvm/jre-1.8.0-openjdk.x86_64/bin/java
+
+            cd /home/ec2-user
+            sudo -bn -u ec2-user -s /usr/bin/java -jar gs-accessing-data-rest-0.1.0.jar 2>&1 > gs-accessing-data-rest-0.1.0.log
+            chown ec2-user:ec2-user gs-accessing-data-rest-0.1.0.log
   ec2B:
     Type: 'AWS::EC2::Instance'
     Properties:
@@ -84,9 +91,17 @@ Resources:
                "Fn::Sub": "${networkStackName}-ec2SecurityGroup"
           AssociatePublicIpAddress: 'true'
       UserData:
-        "Fn::Base64":
-          "Fn::Join": [ "", ["/usr/sbin/yum update -y install java-1.8.0\n", "/usr/sbin/alternatives --set java /usr/lib/jvm/jre-1.8.0-openjdk.x86_64/bin/java\n", "cd /home/ec2-user\n", "sudo -bn -u ec2-user -s /usr/bin/java -jar gs-accessing-data-rest-0.1.0.jar 2>&1 > gs-accessing-data-rest-0.1.0.log\n", "chown ec2-user:ec2-user gs-accessing-data-rest-0.1.0.log\n"]]
-# Ingress from load balancer security group
+        Fn::Base64: !Sub |
+          #!/bin/bash
+
+          #${projectName} - keeps sub function happy
+          /usr/bin/yum -y install java-1.8.0
+          /usr/sbin/alternatives --set java /usr/lib/jvm/jre-1.8.0-openjdk.x86_64/bin/java
+
+          cd /home/ec2-user
+          sudo -bn -u ec2-user -s /usr/bin/java -jar gs-accessing-data-rest-0.1.0.jar 2>&1 > gs-accessing-data-rest-0.1.0.log
+          chown ec2-user:ec2-user gs-accessing-data-rest-0.1.0.log
+# Ingress from load balancer security group to EC2 application port 8080
   ingress1:
     Type: 'AWS::EC2::SecurityGroupIngress'
     Properties:
@@ -94,22 +109,36 @@ Resources:
         "Fn::ImportValue":
           "Fn::Sub": "${networkStackName}-ec2SecurityGroup"
       IpProtocol: tcp
-      FromPort: '8080'
-      ToPort: '8080'
+      FromPort: 8080
+      ToPort: 8080
       SourceSecurityGroupId:
         "Fn::ImportValue":
           "Fn::Sub": "${networkStackName}-loadBalancerSecurityGroup"
       SourceSecurityGroupOwnerId:
         Ref: ownerId
-# ingress from a specific IP CIDR
-  ingressB:
+# ingress from a specific IP CIDR to EC2 instances port 8080
+  ingress2:
     Type: 'AWS::EC2::SecurityGroupIngress'
     Properties:
       GroupId:
         "Fn::ImportValue":
           "Fn::Sub": "${networkStackName}-ec2SecurityGroup"
-      IpProtocol: '-1'
+      IpProtocol: tcp
+        FromPort: 8080
+        ToPort: 8080
       CidrIp: 82.10.149.166/32
+# ingress from a specific IP CIDR to EC2 instances port 22
+  ingress2:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId:
+        "Fn::ImportValue":
+          "Fn::Sub": "${networkStackName}-ec2SecurityGroup"
+      IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+      CidrIp: 82.10.149.166/32
+# egress traffic
   egress:
     Type: 'AWS::EC2::SecurityGroupEgress'
     Properties:
@@ -121,17 +150,14 @@ Resources:
   targetGroup:
     Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
     Properties:
-      HealthCheckPath: /profile
-      HealthCheckPort: '8080'
-      HealthCheckProtocol: HTTP
       Port: 8080
       Protocol: HTTP
+      HealthCheckPath: /profile
+      HealthCheckPort: 8080
+      HealthCheckProtocol: HTTP
       Matcher:
         HttpCode: 200
-      Tags:
-        - Key: Project
-          Value:
-            Ref: projectName
+      Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "tg" ] ]}}]
       Targets:
         - Id:
             Ref: ec2A

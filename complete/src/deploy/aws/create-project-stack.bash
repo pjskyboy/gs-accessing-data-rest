@@ -1,17 +1,21 @@
 #!/bin/bash
 
-usage() { echo "Usage: $0 -p project -a azRoot" 1>&2; exit 1; }
+usage() { echo "Usage: $0 -p project -a azRoot -k publicKeyname" 1>&2; exit 1; }
 
 project=""
 azRoot=""
+publicKeyname=""
 
-while getopts ":p:a:" o; do
+while getopts ":p:a:k:" o; do
     case "${o}" in
         p)
             project=${OPTARG}
             ;;
         a)
             azRoot=${OPTARG}
+            ;;
+        k)
+            publicKeyname=${OPTARG}
             ;;
         *)
             usage
@@ -20,11 +24,13 @@ while getopts ":p:a:" o; do
 done
 shift $((OPTIND-1))
 
-if [ -z "${project}" ] || [ -z "${azRoot}" ]; then
+if [ -z "${project}" ] || [ -z "${azRoot}" ] || [ -z "${publicKeyname}" ]; then
     usage
 fi
 
-echo "project [${project}] azRoot [${azRoot}]"
+echo "project [${project}]"
+echo "azRoot [${azRoot}]"
+echo "publicKeyname [${publicKeyname}]"
 
 # eu-west-1 ami id
 amiId="ami-2587b443"
@@ -39,34 +45,22 @@ pushd ${project}
 
 echo "Applying YAML in yaml.d..."
 for yaml in network.yml loadbalancer.yml ec2.yml
+#for yaml in ec2.yml
 do
     stackName=`echo ${yaml} | cut -f 1 -d"."`
     stackName="${project}-${stackName}"
     echo "stackName [${stackName}]"
 
-    status=$(aws cloudformation describe-stacks --stack-name ${stackName} --output text --query 'Stacks[0].StackStatus')
-    if [ $? -eq 0 ]
-    then
-        if [ ${status} == "CREATE_COMPLETE" ] || [ ${status} == "ROLLBACK_COMPLETE" ] || [ ${status} == "ROLLBACK__IN_PROGRESS" ]
-        then
-            echo "Removing stack for [${project}] yaml [${yaml}]..."
-            aws cloudformation delete-stack --stack-name ${stackName}
-            ./waitForStackStatus.bash -s ${stackName} -d "DELETE_COMPLETE"
-        fi
-    else
-        echo "Assuming no stack for [${stackName}]"
-    fi
-
     parameterList=""
     case ${yaml} in
         "network.yml")
-            parameterList="ParameterKey=projectName,ParameterValue=${project} ParameterKey=azA,ParameterValue=${azRoot}a ParameterKey=azB,ParameterValue=${azRoot}b"
+            parameterList="ParameterKey=projectName,ParameterValue=${project} ParameterKey=azA,ParameterValue=${azRoot}a ParameterKey=azB,ParameterValue=${azRoot}b ParameterKey=domainName,ParameterValue=${azRoot}.compute.internal"
             ;;
         "loadbalancer.yml")
             parameterList="ParameterKey=projectName,ParameterValue=${project} ParameterKey=networkStackName,ParameterValue=${project}-network"
             ;;
         "ec2.yml")
-            parameterList="ParameterKey=projectName,ParameterValue=${project} ParameterKey=networkStackName,ParameterValue=${project}-network ParameterKey=amiId,ParameterValue=ami-2587b443 ParameterKey=keyPair,ParameterValue=sundancer_id_rsa.pub ParameterKey=ownerId,ParameterValue=751191391887"
+            parameterList="ParameterKey=projectName,ParameterValue=${project} ParameterKey=networkStackName,ParameterValue=${project}-network ParameterKey=amiId,ParameterValue=${amiId} ParameterKey=keyPair,ParameterValue=${publicKeyname} ParameterKey=ownerId,ParameterValue=751191391887"
             ;;
     esac
 
@@ -77,6 +71,12 @@ do
     if [ $? == 0 ]
     then
         ./waitForStackStatus.bash -s ${stackName} -d "CREATE_COMPLETE"
+        result=$?
+        if [ ${result} -ne 0 ]
+        then
+            echo "[$stackName}] create has failed - aborting project creation, please investigate and tidy up"
+            exit 100
+        fi
     else
         echo "Creation request failed"
     fi

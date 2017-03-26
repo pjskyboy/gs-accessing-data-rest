@@ -1,6 +1,10 @@
 
 cloud template
 
+seem to have broken network ALCs? - creates 2 ACLs - one with teh subnets the otther (a default) I do not recognise - implicated in below?
+No access to instance ports from pc or to loadbalancer port 80
+
+
 incorporate RDS - multi-AZ at least
 
 
