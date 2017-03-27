@@ -49,8 +49,7 @@ Resources:
                 PrivateIpAddress: "172.31.4.176"
                 Primary: 'true'
             GroupSet:
-              - "Fn::ImportValue":
-                  "Fn::Sub": "${networkStackName}-ec2SecurityGroup"
+              - Ref: ec2SecurityGroup
             AssociatePublicIpAddress: 'true'
         UserData:
           Fn::Base64: !Sub |
@@ -87,8 +86,7 @@ Resources:
               PrivateIpAddress: "172.31.27.192"
               Primary: 'true'
           GroupSet:
-            - "Fn::ImportValue":
-               "Fn::Sub": "${networkStackName}-ec2SecurityGroup"
+            - Ref: ec2SecurityGroup
           AssociatePublicIpAddress: 'true'
       UserData:
         Fn::Base64: !Sub |
@@ -101,19 +99,33 @@ Resources:
           cd /home/ec2-user
           sudo -bn -u ec2-user -s /usr/bin/java -jar gs-accessing-data-rest-0.1.0.jar 2>&1 > gs-accessing-data-rest-0.1.0.log
           chown ec2-user:ec2-user gs-accessing-data-rest-0.1.0.log
+  ec2SecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: 'EC2 security group'
+      VpcId:
+        "Fn::ImportValue":
+          "Fn::Sub": "${networkStackName}-vpcId"
+      Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "ec2-sg" ] ]}}]
+  loadBalancerSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: 'Load balancer security group'
+      VpcId:
+        "Fn::ImportValue":
+          "Fn::Sub": "${networkStackName}-vpcId"
+      Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "lb-sg" ] ]}}]
 # Ingress from load balancer security group to EC2 application port 8080
   ingress1:
     Type: 'AWS::EC2::SecurityGroupIngress'
     Properties:
       GroupId:
-        "Fn::ImportValue":
-          "Fn::Sub": "${networkStackName}-ec2SecurityGroup"
+        Ref: ec2SecurityGroup
       IpProtocol: tcp
       FromPort: 8080
       ToPort: 8080
       SourceSecurityGroupId:
-        "Fn::ImportValue":
-          "Fn::Sub": "${networkStackName}-loadBalancerSecurityGroup"
+        Ref: loadBalancerSecurityGroup
       SourceSecurityGroupOwnerId:
         Ref: ownerId
 # ingress from a specific IP CIDR to EC2 instances port 8080
@@ -121,30 +133,45 @@ Resources:
     Type: 'AWS::EC2::SecurityGroupIngress'
     Properties:
       GroupId:
-        "Fn::ImportValue":
-          "Fn::Sub": "${networkStackName}-ec2SecurityGroup"
+        Ref: ec2SecurityGroup
       IpProtocol: tcp
-        FromPort: 8080
-        ToPort: 8080
+      FromPort: 8080
+      ToPort: 8080
       CidrIp: 82.10.149.166/32
 # ingress from a specific IP CIDR to EC2 instances port 22
-  ingress2:
+  ingress3:
     Type: 'AWS::EC2::SecurityGroupIngress'
     Properties:
       GroupId:
-        "Fn::ImportValue":
-          "Fn::Sub": "${networkStackName}-ec2SecurityGroup"
+        Ref: ec2SecurityGroup
       IpProtocol: tcp
-        FromPort: 22
-        ToPort: 22
+      FromPort: 22
+      ToPort: 22
       CidrIp: 82.10.149.166/32
-# egress traffic
-  egress:
+# allows access from a specific IP
+  ingress4:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId:
+        Ref: loadBalancerSecurityGroup
+      IpProtocol: tcp
+      FromPort: 80
+      ToPort: 80
+      CidrIp: 82.10.149.166/32
+# egress traffic from instances
+  egress1:
     Type: 'AWS::EC2::SecurityGroupEgress'
     Properties:
       GroupId:
-        "Fn::ImportValue":
-          "Fn::Sub": "${networkStackName}-ec2SecurityGroup"
+        Ref: ec2SecurityGroup
+      IpProtocol: '-1'
+      CidrIp: 0.0.0.0/0
+# egress from LB
+  egress2:
+    Type: 'AWS::EC2::SecurityGroupEgress'
+    Properties:
+      GroupId:
+        Ref: loadBalancerSecurityGroup
       IpProtocol: '-1'
       CidrIp: 0.0.0.0/0
   targetGroup:
@@ -166,3 +193,26 @@ Resources:
       VpcId:
         "Fn::ImportValue":
           "Fn::Sub": "${networkStackName}-vpcId"
+  loadbalancer:
+    Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
+    Properties:
+      Scheme: internet-facing
+      SecurityGroups:
+        - Ref: loadBalancerSecurityGroup
+      Subnets:
+        - "Fn::ImportValue":
+                      "Fn::Sub": "${networkStackName}-subnetA"
+        - "Fn::ImportValue":
+                      "Fn::Sub": "${networkStackName}-subnetB"
+      Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "lb" ] ]}}]
+  listener:
+    Type: 'AWS::ElasticLoadBalancingV2::Listener'
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn:
+          Ref: targetGroup
+      LoadBalancerArn:
+        Ref: loadbalancer
+      Port: 80
+      Protocol: HTTP

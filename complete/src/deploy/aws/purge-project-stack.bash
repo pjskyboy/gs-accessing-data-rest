@@ -1,13 +1,17 @@
 #!/bin/bash
 
-usage() { echo "Usage: $0 -p project" 1>&2; exit 1; }
+usage() { echo "Usage: $0 -p project [-f yaml_filenames]" 1>&2; exit 1; }
 
 project=""
+fileList="ec2.yml network.yml"
 
-while getopts ":p:" o; do
+while getopts ":p:f:" o; do
     case "${o}" in
         p)
             project=${OPTARG}
+            ;;
+        f)
+            fileList=${OPTARG}
             ;;
         *)
             usage
@@ -21,12 +25,13 @@ if [ -z "${project}" ]; then
 fi
 
 echo "project [${project}]"
+echo "fileList [${fileList}]"
 
 cp -v waitForStackStatus.bash ${project}
 pushd ${project}
 
 echo "Applying YAML in yaml.d..."
-for yaml in ec2.yml loadbalancer.yml network.yml
+for yaml in ${fileList}
 do
     stackName=`echo ${yaml} | cut -f 1 -d"."`
     stackName="${project}-${stackName}"

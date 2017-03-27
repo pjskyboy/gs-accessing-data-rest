@@ -20,24 +20,11 @@ Parameters:
     Description: "Domain to be used for DHCP Options"
     Type: "String"
     Default: "unknown.domain.name"
+
 Resources:
   vpc: {Type: 'AWS::EC2::VPC', Properties: {CidrBlock: 172.31.0.0/16, InstanceTenancy: default, EnableDnsSupport: 'true', EnableDnsHostnames: 'true', Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "vpc" ] ]}}]}}
   subnetA: {Type: 'AWS::EC2::Subnet', Properties: {CidrBlock: 172.31.0.0/20, AvailabilityZone: {Ref: azA}, VpcId: {Ref: vpc}, Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "subnetA" ] ]}}]}}
   subnetB: {Type: 'AWS::EC2::Subnet', Properties: {CidrBlock: 172.31.16.0/20, AvailabilityZone: {Ref: azB}, VpcId: {Ref: vpc}, Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "subnetB" ] ]}}]}}
-  ec2SecurityGroup:
-    Type: 'AWS::EC2::SecurityGroup'
-    Properties:
-      GroupDescription: 'EC2 security group'
-      VpcId:
-        Ref: vpc
-      Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "ec2-sg" ] ]}}]
-  loadBalancerSecurityGroup:
-    Type: 'AWS::EC2::SecurityGroup'
-    Properties:
-      GroupDescription: 'Load balancer security group'
-      VpcId:
-        Ref: vpc
-      Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "lb-sg" ] ]}}]
   internetGateway:
     Type: 'AWS::EC2::InternetGateway'
     Properties:
@@ -49,86 +36,6 @@ Resources:
         Ref: domainName
       DomainNameServers: [AmazonProvidedDNS]
       Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "dhcp-options" ] ]}}]
-  networkAcl:
-    Type: 'AWS::EC2::NetworkAcl'
-    Properties:
-      VpcId:
-        Ref: vpc
-      Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "nacl" ] ]}}]
-# ACLs from http://docs.aws.amazon.com/elasticloadbalancing/latest/classic/elb-security-groups.html#elb-vpc-nacl
-# INBOUND->LB
-  inboundAcl1:
-    Type: 'AWS::EC2::NetworkAclEntry'
-    Properties:
-      CidrBlock: 0.0.0.0/0
-      Protocol: 6
-      PortRange:
-        From: 80
-        To: 80
-      RuleAction: allow
-      RuleNumber: '100'
-      NetworkAclId:
-        Ref: networkAcl
-
-  inboundAcl2:
-    Type: 'AWS::EC2::NetworkAclEntry'
-    Properties:
-      CidrBlock: 172.31.0.0/16
-      Protocol: 6
-      PortRange:
-        From: 1024
-        To: 65535
-      RuleAction: allow
-      RuleNumber: '200'
-      NetworkAclId:
-        Ref: networkAcl
-
-# OUTBOUND LB->INSTANCES
-# instance listener and health port are the same so this covers both
-  outboundAcl1:
-    Type: 'AWS::EC2::NetworkAclEntry'
-    Properties:
-      CidrBlock: 0.0.0.0/0
-      Egress: 'true'
-      Protocol: 6
-      PortRange:
-        From: 8080
-        To: 8080
-      RuleAction: allow
-      RuleNumber: '100'
-      NetworkAclId:
-        Ref: networkAcl
-
-# Allow all outbound traffic on the ephemeral ports
-  outboundAcl2:
-    Type: 'AWS::EC2::NetworkAclEntry'
-    Properties:
-      CidrBlock: 0.0.0.0/0
-      Egress: 'true'
-      Protocol: 6
-      PortRange:
-        From: 1024
-        To: 65535
-      RuleAction: allow
-      RuleNumber: '200'
-      NetworkAclId:
-        Ref: networkAcl
-
-  subnetacl1:
-    Type: 'AWS::EC2::SubnetNetworkAclAssociation'
-    Properties:
-      NetworkAclId:
-        Ref: networkAcl
-      SubnetId:
-          Ref: subnetA
-
-  subnetacl2:
-    Type: 'AWS::EC2::SubnetNetworkAclAssociation'
-    Properties:
-      NetworkAclId:
-        Ref: networkAcl
-      SubnetId:
-          Ref: subnetB
 
   routeTable:
     Type: 'AWS::EC2::RouteTable'
@@ -141,6 +48,7 @@ Resources:
   subnetRouteB: {Type: 'AWS::EC2::SubnetRouteTableAssociation', Properties: {RouteTableId: {Ref: routeTable}, SubnetId: {Ref: subnetB}}}
   route: {Type: 'AWS::EC2::Route', Properties: {DestinationCidrBlock: 0.0.0.0/0, RouteTableId: {Ref: routeTable}, GatewayId: {Ref: internetGateway}}, DependsOn: gateway}
   dhcpOptionsAssoc: {Type: 'AWS::EC2::VPCDHCPOptionsAssociation', Properties: {VpcId: {Ref: vpc}, DhcpOptionsId: {Ref: dhcpOptions}}}
+
 Outputs:
   vpcId:
     Description: "VPC ID"
@@ -163,19 +71,3 @@ Outputs:
     Export:
       Name:
         "Fn::Sub": "${AWS::StackName}-subnetB"
-  ec2SecurityGroup:
-    Description: "ec2 security group"
-    Value:
-      Ref: ec2SecurityGroup
-    Export:
-      Name:
-        "Fn::Sub": "${AWS::StackName}-ec2SecurityGroup"
-  loadBalancerSecurityGroup:
-    Description: "load balancer security group"
-    Value:
-      Ref: loadBalancerSecurityGroup
-    Export:
-      Name:
-        "Fn::Sub": "${AWS::StackName}-loadBalancerSecurityGroup"
-
-

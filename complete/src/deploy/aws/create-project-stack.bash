@@ -1,12 +1,13 @@
 #!/bin/bash
 
-usage() { echo "Usage: $0 -p project -a azRoot -k publicKeyname" 1>&2; exit 1; }
+usage() { echo "Usage: $0 -p project -a azRoot -k publicKeyname [-f yaml_filenames]" 1>&2; exit 1; }
 
 project=""
 azRoot=""
 publicKeyname=""
+fileList="network.yml ec2.yml"
 
-while getopts ":p:a:k:" o; do
+while getopts ":p:a:k:f:" o; do
     case "${o}" in
         p)
             project=${OPTARG}
@@ -16,6 +17,9 @@ while getopts ":p:a:k:" o; do
             ;;
         k)
             publicKeyname=${OPTARG}
+            ;;
+        f)
+            fileList=${OPTARG}
             ;;
         *)
             usage
@@ -31,6 +35,7 @@ fi
 echo "project [${project}]"
 echo "azRoot [${azRoot}]"
 echo "publicKeyname [${publicKeyname}]"
+echo "fileList [${fileList}]"
 
 # eu-west-1 ami id
 amiId="ami-2587b443"
@@ -44,8 +49,7 @@ cp -v waitForStackStatus.bash ${project}
 pushd ${project}
 
 echo "Applying YAML in yaml.d..."
-for yaml in network.yml loadbalancer.yml ec2.yml
-#for yaml in ec2.yml
+for yaml in ${fileList}
 do
     stackName=`echo ${yaml} | cut -f 1 -d"."`
     stackName="${project}-${stackName}"
