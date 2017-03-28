@@ -115,6 +115,21 @@ Resources:
         "Fn::ImportValue":
           "Fn::Sub": "${networkStackName}-vpcId"
       Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "lb-sg" ] ]}}]
+  rdsSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "Security Group for RDS access from EC2 instances"
+      VpcId:
+        "Fn::ImportValue":
+          "Fn::Sub": "${networkStackName}-vpcId"
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          SourceSecurityGroupId:
+            Ref: ec2SecurityGroup
+      Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "sg" ] ]}}]
+
 # Ingress from load balancer security group to EC2 application port 8080
   ingress1:
     Type: 'AWS::EC2::SecurityGroupIngress'
@@ -201,9 +216,9 @@ Resources:
         - Ref: loadBalancerSecurityGroup
       Subnets:
         - "Fn::ImportValue":
-                      "Fn::Sub": "${networkStackName}-subnetA"
+            "Fn::Sub": "${networkStackName}-subnetA"
         - "Fn::ImportValue":
-                      "Fn::Sub": "${networkStackName}-subnetB"
+            "Fn::Sub": "${networkStackName}-subnetB"
       Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "lb" ] ]}}]
   listener:
     Type: 'AWS::ElasticLoadBalancingV2::Listener'
@@ -216,3 +231,44 @@ Resources:
         Ref: loadbalancer
       Port: 80
       Protocol: HTTP
+  ebsA:
+    Type: 'AWS::EC2::Volume'
+    Properties:
+      Size: 100
+      VolumeType: standard
+      AvailabilityZone:
+        !GetAtt ec2A.AvailabilityZone
+      Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "ebsA" ] ]}}]
+  ebsAMountPoint:
+    Type: 'AWS::EC2::VolumeAttachment'
+    Properties:
+      InstanceId:
+        Ref: ec2A
+      VolumeId:
+        Ref: ebsA
+      Device: /dev/xvdh
+  ebsB:
+    Type: 'AWS::EC2::Volume'
+    Properties:
+      Size: 100
+      VolumeType: standard
+      AvailabilityZone:
+        !GetAtt ec2B.AvailabilityZone
+      Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "ebsB" ] ]}}]
+  ebsBMountPoint:
+    Type: 'AWS::EC2::VolumeAttachment'
+    Properties:
+      InstanceId:
+        Ref: ec2B
+      VolumeId:
+        Ref: ebsB
+      Device: /dev/xvdh
+
+Outputs:
+  rdsSecurityGroup:
+    Description: "RDS Security Group"
+    Value:
+      Ref: rdsSecurityGroup
+    Export:
+      Name:
+        "Fn::Sub": "${AWS::StackName}-rdsSecurityGroup"

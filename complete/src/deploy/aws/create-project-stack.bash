@@ -5,7 +5,7 @@ usage() { echo "Usage: $0 -p project -a azRoot -k publicKeyname [-f yaml_filenam
 project=""
 azRoot=""
 publicKeyname=""
-fileList="network.yml ec2.yml"
+fileList="network.yml ec2.yml rds.yml"
 
 while getopts ":p:a:k:f:" o; do
     case "${o}" in
@@ -60,15 +60,16 @@ do
         "network.yml")
             parameterList="ParameterKey=projectName,ParameterValue=${project} ParameterKey=azA,ParameterValue=${azRoot}a ParameterKey=azB,ParameterValue=${azRoot}b ParameterKey=domainName,ParameterValue=${azRoot}.compute.internal"
             ;;
-        "loadbalancer.yml")
-            parameterList="ParameterKey=projectName,ParameterValue=${project} ParameterKey=networkStackName,ParameterValue=${project}-network"
-            ;;
         "ec2.yml")
             parameterList="ParameterKey=projectName,ParameterValue=${project} ParameterKey=networkStackName,ParameterValue=${project}-network ParameterKey=amiId,ParameterValue=${amiId} ParameterKey=keyPair,ParameterValue=${publicKeyname} ParameterKey=ownerId,ParameterValue=751191391887"
             ;;
+        "rds.yml")
+            parameterList="ParameterKey=projectName,ParameterValue=${project} ParameterKey=networkStackName,ParameterValue=${project}-network ParameterKey=ec2StackName,ParameterValue=${project}-ec2"
+            ;;
     esac
 
-    echo "yaml [${yaml}] parameterList [${parameterList}]"
+    echo "yaml [${yaml}]"
+    echo "parameterList [${parameterList}]"
 
     aws cloudformation create-stack --stack-name ${stackName} --template-body file://yaml.d/${yaml} --parameters ${parameterList}
 

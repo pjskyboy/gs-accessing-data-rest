@@ -1,0 +1,122 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "RDS Aurora HA DB across AZ A and B"
+Parameters:
+  projectName:
+    Description: "Project name to tag resources with using the ProjectName tag"
+    Type: "String"
+    MinLength: 1
+    MaxLength: 255
+    AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
+    Default: "projectName"
+  networkStackName:
+    Description: "Name of the active network stack to reference for dependencies e.g. vpc"
+    Type: "String"
+    MinLength: 1
+    MaxLength: 255
+    AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
+    Default: "networkStackName"
+  ec2StackName:
+    Description: "Name of the active ec2 stack to reference for dependencies e.g. rdsSecurityGroup"
+    Type: "String"
+    MinLength: 1
+    MaxLength: 255
+    AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
+    Default: "ec2StackName"
+  DBName:
+    Default: MyDatabase
+    Description: "The database name"
+    Type: String
+    MinLength: 1
+    MaxLength: 64
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
+    ConstraintDescription: "must begin with a letter and contain only alphanumeric characters."
+    Default: "ec2appdb"
+  DBUser:
+    NoEcho: true
+    Description: "The database admin account username"
+    Type: String
+    MinLength: 1
+    MaxLength: 16
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
+    ConstraintDescription: "must begin with a letter and contain only alphanumeric characters."
+    Default: "ec2app"
+  DBPassword:
+    NoEcho: true
+    Description: "The database admin account password"
+    Type: String
+    MinLength: 1
+    MaxLength: 41
+    AllowedPattern: "[a-zA-Z0-9]+"
+    ConstraintDescription: "must contain only alphanumeric characters."
+    Default: "password"
+  DBAllocatedStorage:
+    Description: "The size of the database (Gb)"
+    Type: Number
+    MinValue: 5
+    MaxValue: 1024
+    ConstraintDescription: "must be between 5 and 1024Gb."
+    Default: "5"
+  DBInstanceClass:
+    Description: "The database instance type"
+    Type: String
+    AllowedValues:
+      - "db.t1.micro"
+      - "db.t2.small"
+    ConstraintDescription: "must select a valid database instance type."
+    Default: "db.t2.small"
+
+Resources:
+  MasterDB:
+    Type: "AWS::RDS::DBInstance"
+    Properties:
+      DBName:
+        Ref: DBName
+      AllocatedStorage:
+        Ref: DBAllocatedStorage
+      DBInstanceClass:
+        Ref: DBInstanceClass
+      Engine: Aurora
+      MasterUsername:
+        Ref: DBUser
+      MasterUserPassword:
+        Ref: DBPassword
+      MultiAZ: true
+      Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "master-db" ] ]}}]
+      VPCSecurityGroups:
+        - "Fn::ImportValue":
+            "Fn::Sub": "${ec2StackName}-rdsSecurityGroup"
+  ReplicaDB:
+    Type: "AWS::RDS::DBInstance"
+    Properties:
+      SourceDBInstanceIdentifier:
+        Ref: MasterDB
+      DBInstanceClass:
+        Ref: DBInstanceClass
+      Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "read-replica-db" ] ]}}]
+
+Outputs:
+  MasterJDBCConnectionString:
+    Description: "JDBC connection string for the master database"
+    Value:
+      "Fn::Join":
+        - ""
+        -
+          - "jdbc:mysql://"
+          - !GetAtt MasterDB.Endpoint.Address
+          - ":"
+          - !GetAtt MasterDB.Endpoint.Port
+          - "/"
+          - Ref: DBName
+
+  ReplicaJDBCConnectionString:
+    Description: "JDBC connection string for the replica database"
+    Value:
+      "Fn::Join":
+        - ""
+        -
+          - "jdbc:mysql://"
+          - !GetAtt ReplicaDB.Endpoint.Address
+          - ":"
+          - !GetAtt ReplicaDB.Endpoint.Port
+          - "/"
+          - Ref: DBName

@@ -3,7 +3,7 @@
 usage() { echo "Usage: $0 -p project [-f yaml_filenames]" 1>&2; exit 1; }
 
 project=""
-fileList="ec2.yml network.yml"
+fileList="rds.yml ec2.yml network.yml"
 
 while getopts ":p:f:" o; do
     case "${o}" in
@@ -42,7 +42,7 @@ do
     then
         if [ ${status} == "CREATE_COMPLETE" ] || [ ${status} == "ROLLBACK_COMPLETE" ] || [ ${status} == "ROLLBACK__IN_PROGRESS" ]
         then
-            echo "Removing stack for [${project}] yaml [${yaml}]..."
+            echo "Removing stack for project [${project}] yaml [${yaml}]..."
             aws cloudformation delete-stack --stack-name ${stackName}
             ./waitForStackStatus.bash -s ${stackName} -d "DELETE_COMPLETE"
         fi

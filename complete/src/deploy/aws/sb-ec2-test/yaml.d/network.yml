@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Build a vpc and a pair of EC2 instances across the a and b AZs'
+Description: 'Build a vpc and loadbalancer with rules to support a dual AZ pair of EC2 instances'
 Parameters:
   projectName:
     Description: "Project name to tag resources with using the ProjectName tag"
