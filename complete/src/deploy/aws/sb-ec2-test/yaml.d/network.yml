@@ -22,9 +22,40 @@ Parameters:
     Default: "unknown.domain.name"
 
 Resources:
-  vpc: {Type: 'AWS::EC2::VPC', Properties: {CidrBlock: 172.31.0.0/16, InstanceTenancy: default, EnableDnsSupport: 'true', EnableDnsHostnames: 'true', Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "vpc" ] ]}}]}}
-  subnetA: {Type: 'AWS::EC2::Subnet', Properties: {CidrBlock: 172.31.0.0/20, AvailabilityZone: {Ref: azA}, VpcId: {Ref: vpc}, Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "subnetA" ] ]}}]}}
-  subnetB: {Type: 'AWS::EC2::Subnet', Properties: {CidrBlock: 172.31.16.0/20, AvailabilityZone: {Ref: azB}, VpcId: {Ref: vpc}, Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "subnetB" ] ]}}]}}
+  vpc:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: 172.31.0.0/16
+      InstanceTenancy: default
+      EnableDnsSupport: 'true'
+      EnableDnsHostnames: 'true'
+      Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "vpc" ] ]}}]}}
+  subnetA:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      CidrBlock: 172.31.0.0/20
+      AvailabilityZone:
+        Ref: azA
+      VpcId:
+        Ref: vpc
+      Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "subnetA" ] ]}}]}}
+  subnetB:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      CidrBlock: 172.31.16.0/20
+      AvailabilityZone:
+        Ref: azB
+      VpcId:
+        Ref: vpc
+      Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "subnetB" ] ]}}]}}
+  dbSubnetGroup:
+    Type: "AWS::RDS::DBSubnetGroup"
+      Properties:
+        DBSubnetGroupDescription: "description"
+        SubnetIds:
+          - "subnetA"
+          - "subnetB"
+        Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "db-subnet-group" ] ]}}]
   internetGateway:
     Type: 'AWS::EC2::InternetGateway'
     Properties:
