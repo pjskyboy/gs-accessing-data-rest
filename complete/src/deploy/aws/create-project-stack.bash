@@ -39,7 +39,7 @@ echo "fileList [${fileList}]"
 
 # eu-west-1 ami id
 amiId="ami-2587b443"
-ebsSnapshotId="snap-007eb6973cf947367"
+ebsSnapshotId="snap-0292ca6cf4c0f2f2a"
 
 if [ "${azRoot}" == "eu-west-2" ]
 then

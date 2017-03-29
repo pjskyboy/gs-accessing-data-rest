@@ -64,7 +64,6 @@ Resources:
 
             # mount app filesystem
             mkdir /app
-            sudo mkfs -t ext4 /dev/xvdh
             mount /dev/xvdh /app
             chown ec2-user:ec2-user /app
 
@@ -107,7 +106,6 @@ Resources:
 
             # mount app filesystem
             mkdir /app
-            sudo mkfs -t ext4 /dev/xvdh
             mount /dev/xvdh /app
             chown ec2-user:ec2-user /app
 
@@ -185,75 +183,6 @@ Resources:
           CidrIp: 82.10.149.166/32
       Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "rds-sg" ] ]}}]
 
-# Ingress from load balancer security group to EC2 application port 8080
-#  ingress1:
-#    Type: 'AWS::EC2::SecurityGroupIngress'
-#    Properties:
-#      GroupId:
-#        Ref: ec2SecurityGroup
-#      IpProtocol: tcp
-#      FromPort: 8080
-#      ToPort: 8080
-#      SourceSecurityGroupId:
-#        Ref: loadBalancerSecurityGroup
-#      SourceSecurityGroupOwnerId:
-#        Ref: ownerId
-# ingress from a specific IP CIDR to EC2 instances port 8080
-#  ingress2:
-#    Type: 'AWS::EC2::SecurityGroupIngress'
-#    Properties:
-#      GroupId:
-#        Ref: ec2SecurityGroup
-#      IpProtocol: tcp
-#      FromPort: 8080
-#      ToPort: 8080
-#      CidrIp: 82.10.149.166/32
-# ingress from a specific IP CIDR to EC2 instances port 22
-#  ingress3:
-#    Type: 'AWS::EC2::SecurityGroupIngress'
-#    Properties:
-#      GroupId:
-#        Ref: ec2SecurityGroup
-#      IpProtocol: tcp
-#      FromPort: 22
-#      ToPort: 22
-#      CidrIp: 82.10.149.166/32
-# allows access from a specific IP
-#  ingress4:
-#    Type: 'AWS::EC2::SecurityGroupIngress'
-#    Properties:
-#      GroupId:
-#        Ref: loadBalancerSecurityGroup
-#      IpProtocol: tcp
-#      FromPort: 80
-#      ToPort: 80
-#      CidrIp: 82.10.149.166/32
-# allows access from a specific IP to the RDS
-#  ingress5:
-#    Type: 'AWS::EC2::SecurityGroupIngress'
-#    Properties:
-#      GroupId:
-#        Ref: rdsSecurityGroup
-#      IpProtocol: tcp
-#      FromPort: 3306
-#      ToPort: 3306
-#      CidrIp: 82.10.149.166/32
-# egress traffic from instances
-#|  egress1:
-#    Type: 'AWS::EC2::SecurityGroupEgress'
-#    Properties:
-#      GroupId:
-#        Ref: ec2SecurityGroup
-#      IpProtocol: '-1'
-#      CidrIp: 0.0.0.0/0
-# egress from LB
-#  egress2:
-#    Type: 'AWS::EC2::SecurityGroupEgress'
-#    Properties:
-#      GroupId:
-#        Ref: loadBalancerSecurityGroup
-#      IpProtocol: '-1'
-#      CidrIp: 0.0.0.0/0
   targetGroup:
     Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
     Properties:

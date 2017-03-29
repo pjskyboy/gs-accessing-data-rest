@@ -37,6 +37,28 @@ Parameters:
     Default: "ec2appdb"
 
 Resources:
+  auroraInstance:
+    DBClusterIdentifier:
+      Ref: auroraCluster
+    DBInstanceClass: db.t2.small
+    DBName:
+      Ref: DBName
+    DBParameterGroupName:
+      Ref: auroraParameterGroup
+    DBSubnetGroupName:
+      "Fn::ImportValue":
+        "Fn::Sub": "${networkStackName}-dbSubnetGroup"
+    Engine: aurora
+    EngineVersion: 5.6
+    MasterUsername: ec2appdbo
+    MasterUserPassword: skylark123
+    MultiAZ: true
+    Timezone: "UTC"
+    VpcSecurityGroupIds:
+      - "Fn::ImportValue":
+          "Fn::Sub": "${ec2StackName}-rdsSecurityGroup"
+    Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "aurora-instance" ] ]}}]
+
   auroraCluster:
     Type: "AWS::RDS::DBCluster"
     Properties:
