@@ -39,11 +39,16 @@ echo "fileList [${fileList}]"
 
 # eu-west-1 ami id
 amiId="ami-2587b443"
+ebsSnapshotId="snap-007eb6973cf947367"
+
 if [ "${azRoot}" == "eu-west-2" ]
 then
+    # eu-west-2 resources
     amiId="ami-0eacb96a"
+    ebsSnapshotId="snap-0261788f106d8e63a"
 fi
 echo "amiId [${amiId}]"
+echo "ebsSnapshotId [${ebsSnapshotId}]"
 
 cp -v waitForStackStatus.bash ${project}
 pushd ${project}
@@ -58,13 +63,13 @@ do
     parameterList=""
     case ${yaml} in
         "network.yml")
-            parameterList="ParameterKey=projectName,ParameterValue=${project} ParameterKey=azA,ParameterValue=${azRoot}a ParameterKey=azB,ParameterValue=${azRoot}b ParameterKey=domainName,ParameterValue=${azRoot}.compute.internal"
+            parameterList="ParameterKey=projectName,ParameterValue=${project} ParameterKey=azRoot,ParameterValue=${azRoot} ParameterKey=domainName,ParameterValue=${azRoot}.compute.internal"
             ;;
         "ec2.yml")
-            parameterList="ParameterKey=projectName,ParameterValue=${project} ParameterKey=networkStackName,ParameterValue=${project}-network ParameterKey=amiId,ParameterValue=${amiId} ParameterKey=keyPair,ParameterValue=${publicKeyname} ParameterKey=ownerId,ParameterValue=751191391887"
+            parameterList="ParameterKey=projectName,ParameterValue=${project} ParameterKey=networkStackName,ParameterValue=${project}-network ParameterKey=amiId,ParameterValue=${amiId} ParameterKey=keyPair,ParameterValue=${publicKeyname} ParameterKey=ownerId,ParameterValue=751191391887 ParameterKey=ebsSnapshotId,ParameterValue=${ebsSnapshotId} "
             ;;
         "rds.yml")
-            parameterList="ParameterKey=projectName,ParameterValue=${project} ParameterKey=networkStackName,ParameterValue=${project}-network ParameterKey=ec2StackName,ParameterValue=${project}-ec2"
+            parameterList="ParameterKey=projectName,ParameterValue=${project} ParameterKey=networkStackName,ParameterValue=${project}-network ParameterKey=azRoot,ParameterValue=${azRoot} ParameterKey=ec2StackName,ParameterValue=${project}-ec2"
             ;;
     esac
 

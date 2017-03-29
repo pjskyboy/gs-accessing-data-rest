@@ -22,6 +22,10 @@ Parameters:
     MaxLength: 255
     AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
     Default: "ec2StackName"
+  azRoot:
+    Description: "Availability Zone root e.g. eu-west-1 - will be suffixed for each AZ used a,b,c, etc"
+    Type: "String"
+    Default: "Unknown"
   DBName:
     Default: MyDatabase
     Description: "The database name"
@@ -31,68 +35,39 @@ Parameters:
     AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
     ConstraintDescription: "must begin with a letter and contain only alphanumeric characters."
     Default: "ec2appdb"
-  DBUser:
-    NoEcho: true
-    Description: "The database admin account username"
-    Type: String
-    MinLength: 1
-    MaxLength: 16
-    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
-    ConstraintDescription: "must begin with a letter and contain only alphanumeric characters."
-    Default: "ec2app"
-  DBPassword:
-    NoEcho: true
-    Description: "The database admin account password"
-    Type: String
-    MinLength: 1
-    MaxLength: 41
-    AllowedPattern: "[a-zA-Z0-9]+"
-    ConstraintDescription: "must contain only alphanumeric characters."
-    Default: "password"
-  DBAllocatedStorage:
-    Description: "The size of the database (Gb)"
-    Type: Number
-    MinValue: 5
-    MaxValue: 1024
-    ConstraintDescription: "must be between 5 and 1024Gb."
-    Default: "5"
-  DBInstanceClass:
-    Description: "The database instance type"
-    Type: String
-    AllowedValues:
-      - "db.t1.micro"
-      - "db.t2.small"
-    ConstraintDescription: "must select a valid database instance type."
-    Default: "db.t2.small"
 
 Resources:
-  MasterDB:
-    Type: "AWS::RDS::DBInstance"
+  auroraCluster:
+    Type: "AWS::RDS::DBCluster"
     Properties:
-      DBName:
+      AvailabilityZones:
+        - "Fn::Sub": "${azRoot}a"
+        - "Fn::Sub": "${azRoot}b"
+      DatabaseName:
         Ref: DBName
-      AllocatedStorage:
-        Ref: DBAllocatedStorage
-      DBInstanceClass:
-        Ref: DBInstanceClass
-      Engine: Aurora
-      MasterUsername:
-        Ref: DBUser
-      MasterUserPassword:
-        Ref: DBPassword
-      MultiAZ: true
-      Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "master-db" ] ]}}]
-      VPCSecurityGroups:
+      DBClusterParameterGroupName:
+        Ref: auroraParameterGroup
+      DBSubnetGroupName:
+        "Fn::ImportValue":
+          "Fn::Sub": "${networkStackName}-dbSubnetGroup"
+      Engine: aurora
+      EngineVersion: 5.6
+      MasterUsername: ec2appdbo
+      MasterUserPassword: skylark123
+      Port: 3306
+      Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "aurora-cluster" ] ]}}]
+      VpcSecurityGroupIds:
         - "Fn::ImportValue":
             "Fn::Sub": "${ec2StackName}-rdsSecurityGroup"
-  ReplicaDB:
-    Type: "AWS::RDS::DBInstance"
+
+  auroraParameterGroup:
+    Type: "AWS::RDS::DBClusterParameterGroup"
     Properties:
-      SourceDBInstanceIdentifier:
-        Ref: MasterDB
-      DBInstanceClass:
-        Ref: DBInstanceClass
-      Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "read-replica-db" ] ]}}]
+      Description: "Aurora database cluster parameter group"
+      Family: aurora5.6
+      Parameters:
+        time_zone: "UTC"
+      Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "aurora-pg" ] ]}}]
 
 Outputs:
   MasterJDBCConnectionString:
@@ -102,21 +77,8 @@ Outputs:
         - ""
         -
           - "jdbc:mysql://"
-          - !GetAtt MasterDB.Endpoint.Address
+          - !GetAtt auroraCluster.Endpoint.Address
           - ":"
-          - !GetAtt MasterDB.Endpoint.Port
-          - "/"
-          - Ref: DBName
-
-  ReplicaJDBCConnectionString:
-    Description: "JDBC connection string for the replica database"
-    Value:
-      "Fn::Join":
-        - ""
-        -
-          - "jdbc:mysql://"
-          - !GetAtt ReplicaDB.Endpoint.Address
-          - ":"
-          - !GetAtt ReplicaDB.Endpoint.Port
+          - !GetAtt auroraCluster.Endpoint.Port
           - "/"
           - Ref: DBName

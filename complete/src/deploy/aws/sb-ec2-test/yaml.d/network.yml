@@ -8,13 +8,9 @@ Parameters:
     MaxLength: 255
     AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
     Default: "projectName"
-  azA:
-    Description: "Availability Zone A for the Region"
-    Type: "AWS::EC2::AvailabilityZone::Name"
-    Default: "Unknown"
-  azB:
-    Description: "Availability Zone B for the Region"
-    Type: "AWS::EC2::AvailabilityZone::Name"
+  azRoot:
+    Description: "Availability Zone root e.g. eu-west-1 - will be suffixed for each AZ used a,b,c, etc"
+    Type: "String"
     Default: "Unknown"
   domainName:
     Description: "Domain to be used for DHCP Options"
@@ -29,33 +25,33 @@ Resources:
       InstanceTenancy: default
       EnableDnsSupport: 'true'
       EnableDnsHostnames: 'true'
-      Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "vpc" ] ]}}]}}
+      Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "vpc" ] ]}}]
   subnetA:
     Type: 'AWS::EC2::Subnet'
     Properties:
       CidrBlock: 172.31.0.0/20
       AvailabilityZone:
-        Ref: azA
+        "Fn::Sub": "${azRoot}a"
       VpcId:
         Ref: vpc
-      Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "subnetA" ] ]}}]}}
+      Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "subnetA" ] ]}}]
   subnetB:
     Type: 'AWS::EC2::Subnet'
     Properties:
       CidrBlock: 172.31.16.0/20
       AvailabilityZone:
-        Ref: azB
+        "Fn::Sub": "${azRoot}b"
       VpcId:
         Ref: vpc
-      Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "subnetB" ] ]}}]}}
+      Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "subnetB" ] ]}}]
   dbSubnetGroup:
     Type: "AWS::RDS::DBSubnetGroup"
-      Properties:
-        DBSubnetGroupDescription: "description"
-        SubnetIds:
-          - "subnetA"
-          - "subnetB"
-        Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "db-subnet-group" ] ]}}]
+    Properties:
+      DBSubnetGroupDescription: "RDS subnetgroup"
+      SubnetIds:
+        - Ref: subnetA
+        - Ref: subnetB
+      Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "db-subnet-group" ] ]}}]
   internetGateway:
     Type: 'AWS::EC2::InternetGateway'
     Properties:
@@ -102,3 +98,11 @@ Outputs:
     Export:
       Name:
         "Fn::Sub": "${AWS::StackName}-subnetB"
+  dbSubnetGroup:
+    Description: "The RDS dbsubnetgroup"
+    Value:
+      Ref: dbSubnetGroup
+    Export:
+      Name:
+        "Fn::Sub": "${AWS::StackName}-dbSubnetGroup"
+

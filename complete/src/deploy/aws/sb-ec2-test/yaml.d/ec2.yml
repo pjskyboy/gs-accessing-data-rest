@@ -24,6 +24,9 @@ Parameters:
   ownerId:
     Description: "Supplied Owner Id (Account Id)"
     Type: "String"
+  ebsSnapshotId:
+    Description: "Id of the S3 snapshot to restore to EBS volumes"
+    Type: "String"
 Resources:
   ec2A:
       Type: 'AWS::EC2::Instance'
@@ -59,7 +62,13 @@ Resources:
             /usr/bin/yum -y install java-1.8.0
             /usr/sbin/alternatives --set java /usr/lib/jvm/jre-1.8.0-openjdk.x86_64/bin/java
 
-            cd /home/ec2-user
+            # mount app filesystem
+            mkdir /app
+            sudo mkfs -t ext4 /dev/xvdh
+            mount /dev/xvdh /app
+            chown ec2-user:ec2-user /app
+
+            cd /app
             sudo -bn -u ec2-user -s /usr/bin/java -jar gs-accessing-data-rest-0.1.0.jar 2>&1 > gs-accessing-data-rest-0.1.0.log
             chown ec2-user:ec2-user gs-accessing-data-rest-0.1.0.log
   ec2B:
@@ -90,15 +99,22 @@ Resources:
           AssociatePublicIpAddress: 'true'
       UserData:
         Fn::Base64: !Sub |
-          #!/bin/bash
+            #!/bin/bash
 
-          #${projectName} - keeps sub function happy
-          /usr/bin/yum -y install java-1.8.0
-          /usr/sbin/alternatives --set java /usr/lib/jvm/jre-1.8.0-openjdk.x86_64/bin/java
+            #${projectName} - keeps sub function happy
+            /usr/bin/yum -y install java-1.8.0
+            /usr/sbin/alternatives --set java /usr/lib/jvm/jre-1.8.0-openjdk.x86_64/bin/java
 
-          cd /home/ec2-user
-          sudo -bn -u ec2-user -s /usr/bin/java -jar gs-accessing-data-rest-0.1.0.jar 2>&1 > gs-accessing-data-rest-0.1.0.log
-          chown ec2-user:ec2-user gs-accessing-data-rest-0.1.0.log
+            # mount app filesystem
+            mkdir /app
+            sudo mkfs -t ext4 /dev/xvdh
+            mount /dev/xvdh /app
+            chown ec2-user:ec2-user /app
+
+            cd /app
+            sudo -bn -u ec2-user -s /usr/bin/java -jar gs-accessing-data-rest-0.1.0.jar 2>&1 > gs-accessing-data-rest-0.1.0.log
+            chown ec2-user:ec2-user gs-accessing-data-rest-0.1.0.log
+
   ec2SecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
@@ -106,7 +122,28 @@ Resources:
       VpcId:
         "Fn::ImportValue":
           "Fn::Sub": "${networkStackName}-vpcId"
+      SecurityGroupIngress:
+        # allow lb to access port 8080
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          SourceSecurityGroupId:
+            Ref: loadBalancerSecurityGroup
+        # allow a specific CIDR access to port 8080
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          CidrIp: 82.10.149.166/32
+        # allow ssh access from specific CIDR
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 82.10.149.166/32
+      SecurityGroupEgress:
+        - IpProtocol: '-1'
+          CidrIp: 0.0.0.0/0
       Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "ec2-sg" ] ]}}]
+
   loadBalancerSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
@@ -114,7 +151,17 @@ Resources:
       VpcId:
         "Fn::ImportValue":
           "Fn::Sub": "${networkStackName}-vpcId"
+      SecurityGroupIngress:
+        # allow specific IP access to lb port 80
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 82.10.149.166/32
+      SecurityGroupEgress:
+        - IpProtocol: '-1'
+          CidrIp: 0.0.0.0/0
       Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "lb-sg" ] ]}}]
+
   rdsSecurityGroup:
     Type: "AWS::EC2::SecurityGroup"
     Properties:
@@ -123,72 +170,90 @@ Resources:
         "Fn::ImportValue":
           "Fn::Sub": "${networkStackName}-vpcId"
       SecurityGroupIngress:
+        # allow EC2 group access to RDS
         - IpProtocol: tcp
           FromPort: 3306
           ToPort: 3306
           SourceSecurityGroupId:
             Ref: ec2SecurityGroup
-      Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "sg" ] ]}}]
+          SourceSecurityGroupOwnerId:
+            Ref: ownerId
+        # specific CIDR access to 3306
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          CidrIp: 82.10.149.166/32
+      Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "rds-sg" ] ]}}]
 
 # Ingress from load balancer security group to EC2 application port 8080
-  ingress1:
-    Type: 'AWS::EC2::SecurityGroupIngress'
-    Properties:
-      GroupId:
-        Ref: ec2SecurityGroup
-      IpProtocol: tcp
-      FromPort: 8080
-      ToPort: 8080
-      SourceSecurityGroupId:
-        Ref: loadBalancerSecurityGroup
-      SourceSecurityGroupOwnerId:
-        Ref: ownerId
+#  ingress1:
+#    Type: 'AWS::EC2::SecurityGroupIngress'
+#    Properties:
+#      GroupId:
+#        Ref: ec2SecurityGroup
+#      IpProtocol: tcp
+#      FromPort: 8080
+#      ToPort: 8080
+#      SourceSecurityGroupId:
+#        Ref: loadBalancerSecurityGroup
+#      SourceSecurityGroupOwnerId:
+#        Ref: ownerId
 # ingress from a specific IP CIDR to EC2 instances port 8080
-  ingress2:
-    Type: 'AWS::EC2::SecurityGroupIngress'
-    Properties:
-      GroupId:
-        Ref: ec2SecurityGroup
-      IpProtocol: tcp
-      FromPort: 8080
-      ToPort: 8080
-      CidrIp: 82.10.149.166/32
+#  ingress2:
+#    Type: 'AWS::EC2::SecurityGroupIngress'
+#    Properties:
+#      GroupId:
+#        Ref: ec2SecurityGroup
+#      IpProtocol: tcp
+#      FromPort: 8080
+#      ToPort: 8080
+#      CidrIp: 82.10.149.166/32
 # ingress from a specific IP CIDR to EC2 instances port 22
-  ingress3:
-    Type: 'AWS::EC2::SecurityGroupIngress'
-    Properties:
-      GroupId:
-        Ref: ec2SecurityGroup
-      IpProtocol: tcp
-      FromPort: 22
-      ToPort: 22
-      CidrIp: 82.10.149.166/32
+#  ingress3:
+#    Type: 'AWS::EC2::SecurityGroupIngress'
+#    Properties:
+#      GroupId:
+#        Ref: ec2SecurityGroup
+#      IpProtocol: tcp
+#      FromPort: 22
+#      ToPort: 22
+#      CidrIp: 82.10.149.166/32
 # allows access from a specific IP
-  ingress4:
-    Type: 'AWS::EC2::SecurityGroupIngress'
-    Properties:
-      GroupId:
-        Ref: loadBalancerSecurityGroup
-      IpProtocol: tcp
-      FromPort: 80
-      ToPort: 80
-      CidrIp: 82.10.149.166/32
+#  ingress4:
+#    Type: 'AWS::EC2::SecurityGroupIngress'
+#    Properties:
+#      GroupId:
+#        Ref: loadBalancerSecurityGroup
+#      IpProtocol: tcp
+#      FromPort: 80
+#      ToPort: 80
+#      CidrIp: 82.10.149.166/32
+# allows access from a specific IP to the RDS
+#  ingress5:
+#    Type: 'AWS::EC2::SecurityGroupIngress'
+#    Properties:
+#      GroupId:
+#        Ref: rdsSecurityGroup
+#      IpProtocol: tcp
+#      FromPort: 3306
+#      ToPort: 3306
+#      CidrIp: 82.10.149.166/32
 # egress traffic from instances
-  egress1:
-    Type: 'AWS::EC2::SecurityGroupEgress'
-    Properties:
-      GroupId:
-        Ref: ec2SecurityGroup
-      IpProtocol: '-1'
-      CidrIp: 0.0.0.0/0
+#|  egress1:
+#    Type: 'AWS::EC2::SecurityGroupEgress'
+#    Properties:
+#      GroupId:
+#        Ref: ec2SecurityGroup
+#      IpProtocol: '-1'
+#      CidrIp: 0.0.0.0/0
 # egress from LB
-  egress2:
-    Type: 'AWS::EC2::SecurityGroupEgress'
-    Properties:
-      GroupId:
-        Ref: loadBalancerSecurityGroup
-      IpProtocol: '-1'
-      CidrIp: 0.0.0.0/0
+#  egress2:
+#    Type: 'AWS::EC2::SecurityGroupEgress'
+#    Properties:
+#      GroupId:
+#        Ref: loadBalancerSecurityGroup
+#      IpProtocol: '-1'
+#      CidrIp: 0.0.0.0/0
   targetGroup:
     Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
     Properties:
@@ -238,6 +303,8 @@ Resources:
       VolumeType: standard
       AvailabilityZone:
         !GetAtt ec2A.AvailabilityZone
+      SnapshotId:
+        Ref: ebsSnapshotId
       Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "ebsA" ] ]}}]
   ebsAMountPoint:
     Type: 'AWS::EC2::VolumeAttachment'
@@ -254,6 +321,8 @@ Resources:
       VolumeType: standard
       AvailabilityZone:
         !GetAtt ec2B.AvailabilityZone
+      SnapshotId:
+        Ref: ebsSnapshotId
       Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "ebsB" ] ]}}]
   ebsBMountPoint:
     Type: 'AWS::EC2::VolumeAttachment'
