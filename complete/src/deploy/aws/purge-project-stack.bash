@@ -3,7 +3,7 @@
 usage() { echo "Usage: $0 -p project [-f yaml_filenames]" 1>&2; exit 1; }
 
 project=""
-fileList="rds.yml ec2.yml network.yml"
+fileList="ec2.yml rds.yml network.yml"
 
 while getopts ":p:f:" o; do
     case "${o}" in

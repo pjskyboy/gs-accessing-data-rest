@@ -5,7 +5,7 @@ usage() { echo "Usage: $0 -p project -a azRoot -k publicKeyname [-f yaml_filenam
 project=""
 azRoot=""
 publicKeyname=""
-fileList="network.yml ec2.yml rds.yml"
+fileList="network.yml rds.yml ec2.yml"
 
 while getopts ":p:a:k:f:" o; do
     case "${o}" in
@@ -39,7 +39,7 @@ echo "fileList [${fileList}]"
 
 # eu-west-1 ami id
 amiId="ami-2587b443"
-ebsSnapshotId="snap-0292ca6cf4c0f2f2a"
+ebsSnapshotId="snap-013cb8e91e836e53c"
 
 if [ "${azRoot}" == "eu-west-2" ]
 then
@@ -66,10 +66,10 @@ do
             parameterList="ParameterKey=projectName,ParameterValue=${project} ParameterKey=azRoot,ParameterValue=${azRoot} ParameterKey=domainName,ParameterValue=${azRoot}.compute.internal"
             ;;
         "ec2.yml")
-            parameterList="ParameterKey=projectName,ParameterValue=${project} ParameterKey=networkStackName,ParameterValue=${project}-network ParameterKey=amiId,ParameterValue=${amiId} ParameterKey=keyPair,ParameterValue=${publicKeyname} ParameterKey=ownerId,ParameterValue=751191391887 ParameterKey=ebsSnapshotId,ParameterValue=${ebsSnapshotId} "
+            parameterList="ParameterKey=projectName,ParameterValue=${project} ParameterKey=networkStackName,ParameterValue=${project}-network ParameterKey=rdsStackName,ParameterValue=${project}-rds ParameterKey=amiId,ParameterValue=${amiId} ParameterKey=keyPair,ParameterValue=${publicKeyname} ParameterKey=ownerId,ParameterValue=751191391887 ParameterKey=ebsSnapshotId,ParameterValue=${ebsSnapshotId} "
             ;;
         "rds.yml")
-            parameterList="ParameterKey=projectName,ParameterValue=${project} ParameterKey=networkStackName,ParameterValue=${project}-network ParameterKey=azRoot,ParameterValue=${azRoot} ParameterKey=ec2StackName,ParameterValue=${project}-ec2"
+            parameterList="ParameterKey=projectName,ParameterValue=${project} ParameterKey=networkStackName,ParameterValue=${project}-network ParameterKey=azRoot,ParameterValue=${azRoot}"
             ;;
     esac
 

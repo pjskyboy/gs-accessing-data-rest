@@ -15,49 +15,41 @@ Parameters:
     MaxLength: 255
     AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
     Default: "networkStackName"
-  ec2StackName:
-    Description: "Name of the active ec2 stack to reference for dependencies e.g. rdsSecurityGroup"
-    Type: "String"
-    MinLength: 1
-    MaxLength: 255
-    AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
-    Default: "ec2StackName"
   azRoot:
     Description: "Availability Zone root e.g. eu-west-1 - will be suffixed for each AZ used a,b,c, etc"
     Type: "String"
     Default: "Unknown"
   DBName:
-    Default: MyDatabase
     Description: "The database name"
     Type: String
     MinLength: 1
     MaxLength: 64
     AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
     ConstraintDescription: "must begin with a letter and contain only alphanumeric characters."
-    Default: "ec2appdb"
+    Default: ec2appdb
 
 Resources:
-  auroraInstance:
-    DBClusterIdentifier:
-      Ref: auroraCluster
-    DBInstanceClass: db.t2.small
-    DBName:
-      Ref: DBName
-    DBParameterGroupName:
-      Ref: auroraParameterGroup
-    DBSubnetGroupName:
-      "Fn::ImportValue":
-        "Fn::Sub": "${networkStackName}-dbSubnetGroup"
-    Engine: aurora
-    EngineVersion: 5.6
-    MasterUsername: ec2appdbo
-    MasterUserPassword: skylark123
-    MultiAZ: true
-    Timezone: "UTC"
-    VpcSecurityGroupIds:
-      - "Fn::ImportValue":
-          "Fn::Sub": "${ec2StackName}-rdsSecurityGroup"
-    Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "aurora-instance" ] ]}}]
+  auroraMaster:
+    Type: "AWS::RDS::DBInstance"
+    Properties:
+      DBClusterIdentifier:
+        Ref: auroraCluster
+      DBInstanceClass: db.t2.small
+      DBSubnetGroupName:
+        "Fn::ImportValue":
+          "Fn::Sub": "${networkStackName}-dbSubnetGroup"
+      Engine: aurora
+      EngineVersion: 5.6
+      Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "aurora-master" ] ]}}]
+
+  auroraReadReplica:
+    Type: "AWS::RDS::DBInstance"
+    Properties:
+      # same cluster as the master db
+      DBClusterIdentifier:
+        Ref: auroraCluster
+      DBInstanceClass: db.t2.small
+      Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "aurora-read-replica" ] ]}}]
 
   auroraCluster:
     Type: "AWS::RDS::DBCluster"
@@ -67,8 +59,6 @@ Resources:
         - "Fn::Sub": "${azRoot}b"
       DatabaseName:
         Ref: DBName
-      DBClusterParameterGroupName:
-        Ref: auroraParameterGroup
       DBSubnetGroupName:
         "Fn::ImportValue":
           "Fn::Sub": "${networkStackName}-dbSubnetGroup"
@@ -79,20 +69,33 @@ Resources:
       Port: 3306
       Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "aurora-cluster" ] ]}}]
       VpcSecurityGroupIds:
-        - "Fn::ImportValue":
-            "Fn::Sub": "${ec2StackName}-rdsSecurityGroup"
+        - Ref: rdsSecurityGroup
 
-  auroraParameterGroup:
-    Type: "AWS::RDS::DBClusterParameterGroup"
+ rdsSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
     Properties:
-      Description: "Aurora database cluster parameter group"
-      Family: aurora5.6
-      Parameters:
-        time_zone: "UTC"
-      Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "aurora-pg" ] ]}}]
+      GroupDescription: "Security Group for RDS access from EC2 instances"
+      VpcId:
+        "Fn::ImportValue":
+          "Fn::Sub": "${networkStackName}-vpcId"
+      SecurityGroupIngress:
+        # specific CIDR access to 3306
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          CidrIp: 82.10.149.166/32
+      Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "rds-sg" ] ]}}]
 
 Outputs:
-  MasterJDBCConnectionString:
+  rdsSecurityGroup:
+    Description: "RDS Security Group"
+    Value:
+      Ref: rdsSecurityGroup
+    Export:
+      Name:
+        "Fn::Sub": "${AWS::StackName}-rdsSecurityGroup"
+
+  clusterJDBCConnectionString:
     Description: "JDBC connection string for the master database"
     Value:
       "Fn::Join":

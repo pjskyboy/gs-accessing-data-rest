@@ -15,6 +15,13 @@ Parameters:
     MaxLength: 255
     AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
     Default: "networkStackName"
+  rdsStackName:
+    Description: "Name of the active rds stack to reference for dependencies e.g. rdsSecurityGroup"
+    Type: "String"
+    MinLength: 1
+    MaxLength: 255
+    AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
+    Default: "rdsStackName"
   amiId:
     Description: "Supplied AMI Id"
     Type: "String"
@@ -64,7 +71,9 @@ Resources:
 
             # mount app filesystem
             mkdir /app
-            mount /dev/xvdh /app
+            mount /dev/xvdh /app -t ext4
+            sleep 10
+            mount /dev/xvdh /app -t ext4
             chown ec2-user:ec2-user /app
 
             cd /app
@@ -106,7 +115,9 @@ Resources:
 
             # mount app filesystem
             mkdir /app
-            mount /dev/xvdh /app
+            mount /dev/xvdh /app -t ext4
+            sleep 10
+            mount /dev/xvdh /app -t ext4
             chown ec2-user:ec2-user /app
 
             cd /app
@@ -160,30 +171,7 @@ Resources:
           CidrIp: 0.0.0.0/0
       Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "lb-sg" ] ]}}]
 
-  rdsSecurityGroup:
-    Type: "AWS::EC2::SecurityGroup"
-    Properties:
-      GroupDescription: "Security Group for RDS access from EC2 instances"
-      VpcId:
-        "Fn::ImportValue":
-          "Fn::Sub": "${networkStackName}-vpcId"
-      SecurityGroupIngress:
-        # allow EC2 group access to RDS
-        - IpProtocol: tcp
-          FromPort: 3306
-          ToPort: 3306
-          SourceSecurityGroupId:
-            Ref: ec2SecurityGroup
-          SourceSecurityGroupOwnerId:
-            Ref: ownerId
-        # specific CIDR access to 3306
-        - IpProtocol: tcp
-          FromPort: 3306
-          ToPort: 3306
-          CidrIp: 82.10.149.166/32
-      Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "rds-sg" ] ]}}]
-
-  targetGroup:
+   targetGroup:
     Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
     Properties:
       Port: 8080
@@ -262,11 +250,18 @@ Resources:
         Ref: ebsB
       Device: /dev/xvdh
 
-Outputs:
-  rdsSecurityGroup:
-    Description: "RDS Security Group"
-    Value:
-      Ref: rdsSecurityGroup
-    Export:
-      Name:
-        "Fn::Sub": "${AWS::StackName}-rdsSecurityGroup"
+  # allow EC2 group access to RDS
+  rdsIngress:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId:
+        Ref:
+          "Fn::ImportValue":
+            "Fn::Sub": "${rdsStackName}-rdsSecurityGroup"
+        IpProtocol: tcp
+        FromPort: 3306
+        ToPort: 3306
+        SourceSecurityGroupId:
+          Ref: ec2SecurityGroup
+        SourceSecurityGroupOwnerId:
+          Ref: ownerId
