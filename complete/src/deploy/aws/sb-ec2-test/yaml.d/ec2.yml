@@ -34,51 +34,74 @@ Parameters:
   ebsSnapshotId:
     Description: "Id of the S3 snapshot to restore to EBS volumes"
     Type: "String"
+  jdbcUrl:
+    Description: "The JDBC URL to connect to the cluster endpoint - defaults to the connection URL exported by the RDS stack"
+    Type: String
+    Default: "unknown"
+  clusterUsername:
+    Description: "The cluster endpoint username"
+    Type: String
+  clusterPassword:
+    Description: "The cluster endpoint password"
+    Type: String
+    NoEcho: true
 Resources:
   ec2A:
-      Type: 'AWS::EC2::Instance'
-      Properties:
-        DisableApiTermination: 'false'
-        InstanceInitiatedShutdownBehavior: stop
-        ImageId:
-          Ref: amiId
-        InstanceType: t2.micro
-        KeyName:
-          Ref: keyPair
-        Monitoring: 'false'
-        Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "ec2A" ] ]}}]
-        NetworkInterfaces:
-          -
-            DeleteOnTermination: 'true'
-            DeviceIndex: 0
-            SubnetId:
-              "Fn::ImportValue":
-                "Fn::Sub": "${networkStackName}-subnetA"
-            PrivateIpAddresses:
-              -
-                PrivateIpAddress: "172.31.4.176"
-                Primary: 'true'
-            GroupSet:
-              - Ref: ec2SecurityGroup
-            AssociatePublicIpAddress: 'true'
-        UserData:
-          Fn::Base64: !Sub |
-            #!/bin/bash
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      DisableApiTermination: 'false'
+      InstanceInitiatedShutdownBehavior: stop
+      ImageId:
+        Ref: amiId
+      InstanceType: t2.micro
+      KeyName:
+        Ref: keyPair
+      Monitoring: 'false'
+      Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "ec2A" ] ]}}]
+      NetworkInterfaces:
+        -
+          DeleteOnTermination: 'true'
+          DeviceIndex: 0
+          SubnetId:
+            "Fn::ImportValue":
+              "Fn::Sub": "${networkStackName}-subnetA"
+          PrivateIpAddresses:
+            -
+              PrivateIpAddress: "172.31.4.176"
+              Primary: 'true'
+          GroupSet:
+            - Ref: ec2SecurityGroup
+          AssociatePublicIpAddress: 'true'
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
 
-            #${projectName} - keeps sub function happy
-            /usr/bin/yum -y install java-1.8.0
-            /usr/sbin/alternatives --set java /usr/lib/jvm/jre-1.8.0-openjdk.x86_64/bin/java
+          #${projectName} - keeps sub function happy
+          /usr/bin/yum -y install java-1.8.0
+          /usr/sbin/alternatives --set java /usr/lib/jvm/jre-1.8.0-openjdk.x86_64/bin/java
 
-            # mount app filesystem
-            mkdir /app
-            mount /dev/xvdh /app -t ext4
-            sleep 10
-            mount /dev/xvdh /app -t ext4
-            chown ec2-user:ec2-user /app
+          # mount app filesystem
+          mkdir /app
+          mount /dev/xvdh /app -t ext4
+          sleep 10
+          mount /dev/xvdh /app -t ext4
+          chown ec2-user:ec2-user /app
 
-            cd /app
-            sudo -bn -u ec2-user -s /usr/bin/java -jar gs-accessing-data-rest-0.1.0.jar 2>&1 > gs-accessing-data-rest-0.1.0.log
-            chown ec2-user:ec2-user gs-accessing-data-rest-0.1.0.log
+          cd /app
+          # this is crude...
+          echo "spring:" > application.yaml
+          echo "   datasource:" >> application.yaml
+          echo "     url: ${jdbcUrl}" >> application.yaml
+          echo "     username: ${clusterUsername}" >> application.yaml
+          echo "     password: ${clusterPassword}" >> application.yaml
+          echo "   jpa:" >> application.yaml
+          echo "     hibernate:" >> application.yaml
+          echo "       ddl-auto: update" >> application.yaml
+          echo "     database-platform: org.hibernate.dialect.MySQL5Dialect" >> application.yaml
+
+          chown ec2-user:ec2-user gs-accessing-data-rest-0.1.0.jar
+          sudo -bn -u ec2-user -s /usr/bin/java -jar gs-accessing-data-rest-0.1.0.jar 2>&1 > gs-accessing-data-rest-0.1.0.log
+          chown ec2-user:ec2-user gs-accessing-data-rest-0.1.0.log
   ec2B:
     Type: 'AWS::EC2::Instance'
     Properties:
@@ -121,6 +144,18 @@ Resources:
             chown ec2-user:ec2-user /app
 
             cd /app
+            # this is crude...
+            echo "spring:" > application.yaml
+            echo "   datasource:" >> application.yaml
+            echo "     url: ${jdbcUrl}" >> application.yaml
+            echo "     username: ${clusterUsername}" >> application.yaml
+            echo "     password: ${clusterPassword}" >> application.yaml
+            echo "   jpa:" >> application.yaml
+            echo "     hibernate:" >> application.yaml
+            echo "       ddl-auto: update" >> application.yaml
+            echo "     database-platform: org.hibernate.dialect.MySQL5Dialect" >> application.yaml
+
+            chown ec2-user:ec2-user gs-accessing-data-rest-0.1.0.jar
             sudo -bn -u ec2-user -s /usr/bin/java -jar gs-accessing-data-rest-0.1.0.jar 2>&1 > gs-accessing-data-rest-0.1.0.log
             chown ec2-user:ec2-user gs-accessing-data-rest-0.1.0.log
 
@@ -171,7 +206,7 @@ Resources:
           CidrIp: 0.0.0.0/0
       Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "lb-sg" ] ]}}]
 
-   targetGroup:
+  targetGroup:
     Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
     Properties:
       Port: 8080
@@ -255,13 +290,12 @@ Resources:
     Type: 'AWS::EC2::SecurityGroupIngress'
     Properties:
       GroupId:
-        Ref:
-          "Fn::ImportValue":
-            "Fn::Sub": "${rdsStackName}-rdsSecurityGroup"
-        IpProtocol: tcp
-        FromPort: 3306
-        ToPort: 3306
-        SourceSecurityGroupId:
-          Ref: ec2SecurityGroup
-        SourceSecurityGroupOwnerId:
-          Ref: ownerId
+        "Fn::ImportValue":
+          "Fn::Sub": "${rdsStackName}-rdsSecurityGroup"
+      IpProtocol: tcp
+      FromPort: 3306
+      ToPort: 3306
+      SourceSecurityGroupId:
+        Ref: ec2SecurityGroup
+      SourceSecurityGroupOwnerId:
+        Ref: ownerId

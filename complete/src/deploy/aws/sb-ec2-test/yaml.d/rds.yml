@@ -27,7 +27,14 @@ Parameters:
     AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
     ConstraintDescription: "must begin with a letter and contain only alphanumeric characters."
     Default: ec2appdb
-
+  clusterUsername:
+    Description: "The cluster endpoint username"
+    Type: String
+    Default: ec2appdbo
+  clusterPassword:
+    Description: "The cluster endpoint password - no default"
+    Type: String
+      
 Resources:
   auroraMaster:
     Type: "AWS::RDS::DBInstance"
@@ -49,6 +56,8 @@ Resources:
       DBClusterIdentifier:
         Ref: auroraCluster
       DBInstanceClass: db.t2.small
+      Engine: aurora
+      EngineVersion: 5.6
       Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "aurora-read-replica" ] ]}}]
 
   auroraCluster:
@@ -64,14 +73,16 @@ Resources:
           "Fn::Sub": "${networkStackName}-dbSubnetGroup"
       Engine: aurora
       EngineVersion: 5.6
-      MasterUsername: ec2appdbo
-      MasterUserPassword: skylark123
+      MasterUsername:
+        Ref: clusterUsername
+      MasterUserPassword:
+        Ref: clusterPassword
       Port: 3306
       Tags: [{Key: ProjectName, Value: {Ref: projectName}}, {Key: Name, Value: {"Fn::Join": [ "-", [ Ref: projectName, "aurora-cluster" ] ]}}]
       VpcSecurityGroupIds:
         - Ref: rdsSecurityGroup
 
- rdsSecurityGroup:
+  rdsSecurityGroup:
     Type: "AWS::EC2::SecurityGroup"
     Properties:
       GroupDescription: "Security Group for RDS access from EC2 instances"
@@ -96,7 +107,7 @@ Outputs:
         "Fn::Sub": "${AWS::StackName}-rdsSecurityGroup"
 
   clusterJDBCConnectionString:
-    Description: "JDBC connection string for the master database"
+    Description: "JDBC connection string for the cluster endpoint"
     Value:
       "Fn::Join":
         - ""
@@ -107,3 +118,22 @@ Outputs:
           - !GetAtt auroraCluster.Endpoint.Port
           - "/"
           - Ref: DBName
+    Export:
+      Name:
+        "Fn::Sub": "${AWS::StackName}-clusterJDBCConnectionString"
+
+  clusterUsername:
+    Description: "Cluster username"
+    Value:
+      Ref: clusterUsername
+    Export:
+      Name:
+        "Fn::Sub": "${AWS::StackName}-clusterUsername"
+
+  clusterPassword:
+    Description: "Cluster password"
+    Value:
+      Ref: clusterPassword
+    Export:
+      Name:
+        "Fn::Sub": "${AWS::StackName}-clusterPassword"
